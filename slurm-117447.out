@@ -1028,3 +1028,8 @@ learning rate = 0.0001000
 (epoch: 49, iters: 512, time: 0.017, data: 0.013) G_GAN: -0.0906 D: 0.0032 G_GAN2: 0.0522 D2: 0.0086 G_L1: 0.0276 z_L1: 0.3442 kl: 0.0007 gradient_penalty: 0.0087 errNE: -10.0000 
 (epoch: 49, iters: 3712, time: 0.016, data: 0.012) G_GAN: -0.0659 D: 0.0030 G_GAN2: 0.0983 D2: 0.0071 G_L1: 0.0275 z_L1: 0.3796 kl: 0.0003 gradient_penalty: 0.0073 errNE: -10.0000 
 (epoch: 49, iters: 6912, time: 0.017, data: 0.013) G_GAN: -0.0461 D: 0.0022 G_GAN2: 0.1349 D2: 0.0052 G_L1: 0.0241 z_L1: 0.3837 kl: 0.0011 gradient_penalty: 0.0053 errNE: -10.0000 
+(epoch: 49, iters: 10112, time: 0.017, data: 0.013) G_GAN: -0.0609 D: 0.0023 G_GAN2: 0.1548 D2: 0.0136 G_L1: 0.0267 z_L1: 0.3869 kl: 0.0020 gradient_penalty: 0.0139 errNE: -10.0000 
+(epoch: 49, iters: 13312, time: 0.017, data: 0.014) G_GAN: -0.0591 D: 0.0038 G_GAN2: 0.1473 D2: 0.0117 G_L1: 0.0304 z_L1: 0.3701 kl: 0.0018 gradient_penalty: 0.0119 errNE: -10.0000 
+(epoch: 49, iters: 16512, time: 0.017, data: 0.015) G_GAN: -0.1006 D: 0.0020 G_GAN2: 0.2110 D2: 0.0077 G_L1: 0.0233 z_L1: 0.4032 kl: 0.0001 gradient_penalty: 0.0078 errNE: -10.0000 
+(epoch: 49, iters: 19712, time: 0.017, data: 0.011) G_GAN: -0.1444 D: 0.0058 G_GAN2: 0.1837 D2: 0.0086 G_L1: 0.0233 z_L1: 0.3792 kl: 0.0014 gradient_penalty: 0.0087 errNE: -10.0000 
+(epoch: 49, iters: 22912, time: 0.018, data: 0.023) G_GAN: -0.1084 D: 0.0015 G_GAN2: 0.2057 D2: 0.0058 G_L1: 0.0276 z_L1: 0.3672 kl: 0.0008 gradient_penalty: 0.0062 errNE: -10.0000 
