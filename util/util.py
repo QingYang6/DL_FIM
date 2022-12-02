@@ -5,7 +5,6 @@ import numpy as np
 from PIL import Image
 import os
 
-
 def tensor2im(input_image, imtype=np.uint8):
     """"Converts a Tensor array into a numpy image array.
 
@@ -25,6 +24,28 @@ def tensor2im(input_image, imtype=np.uint8):
     else:  # if it is a numpy array, do nothing
         image_numpy = input_image
     return image_numpy.astype(imtype)
+
+def batch2list(input_image, imtype=np.uint8):
+    """"Converts a multi channel Tensor into lsit of array.
+
+    Parameters:
+        input_image (tensor) --  the input image tensor array
+        imtype (type)        --  the desired type of the converted numpy array
+    """
+    outlist = []
+    c,_,_ = input_image.size()
+    if c >1:
+        #nor_band = input_image[0,:,:]
+        #nor_band = torch.reshape(nor_band,(1, input_image.shape[1], input_image.shape[2]))
+        #for ic in range(c):
+        #    #nor_band = input_image[ic,:,:] / input_image[ic,:,:].sum(0).expand_as(input_image[ic,:,:])
+        #    #nor_band = transform(input_image[ic,:,:])*2-1
+        #    nor_band = input_image[ic,:,:]
+        #    outlist.append(nor_band.cpu())
+        outlist.append(input_image.cpu())
+    else:
+        outlist.append(input_image.cpu())
+    return outlist
 
 
 def diagnose_network(net, name='network'):

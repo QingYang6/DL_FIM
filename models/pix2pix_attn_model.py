@@ -31,12 +31,15 @@ class Pix2PixAttnModel(BaseModel):
         By default, we use vanilla GAN loss, UNet with batchnorm, and aligned datasets.
         """
         # changing the default values to match the pix2pix paper (https://phillipi.github.io/pix2pix/)
-        parser.set_defaults(norm='instance', netG='unet_256', dataset_mode='aligned')
+        # not neccesary the same Q 07162022
+        parser.set_defaults(norm='instance', netG='unet_256')
         parser.add_argument('--mask_size', type=int, default=256)
         if is_train:
             # parser.set_defaults(pool_size=0, gan_mode='vanilla')
             parser.set_defaults(pool_size=0, gan_mode='vanilla')
             parser.add_argument('--lambda_L1', type=float, default=100.0, help='weight for L1 loss')
+            parser.add_argument('--s1', type=int, default=64)
+            parser.add_argument('--s2', type=int, default=32)
 
         return parser
 
@@ -61,13 +64,14 @@ class Pix2PixAttnModel(BaseModel):
                                       not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids)
 
         self.netSC = networks.define_C(opt.norm, opt.init_type, opt.init_gain, self.gpu_ids)
-        self.aux_data = aux_dataset.AuxAttnDataset(7000, 7000, self.gpu_ids[0], mask_size=32)
+        self.aux_data = aux_dataset.AuxAttnDataset(opt.dataset_sizeTotal, opt.dataset_sizeTotal, self.gpu_ids, mask_size=opt.mask_size)
         self.zero_attn_holder = torch.zeros((1, 1, opt.mask_size, opt.mask_size), dtype=torch.float32).to(self.device)
         self.ones_attn_holder = torch.ones((1, 1, opt.mask_size, opt.mask_size), dtype=torch.float32).to(self.device)
 
         if self.isTrain:  # define a discriminator; conditional GANs need to take both input and output images; Therefore, #channels for D is input_nc + output_nc
             self.netD = networks.define_D(opt.input_nc + opt.output_nc, opt.ndf, opt.netD,
-                                          opt.n_layers_D, opt.norm, opt.init_type, opt.init_gain, self.gpu_ids)
+                                          opt.n_layers_D, opt.norm, opt.init_type, opt.init_gain, 
+                                          self.gpu_ids, opt.mask_size, opt.s1, opt.s2)
 
         if self.isTrain:
             # define loss functions
@@ -97,7 +101,8 @@ class Pix2PixAttnModel(BaseModel):
 
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
-        concat_attn_A = self.netSC(self.attn_A)
+        #concat_attn_A = self.netSC(self.attn_A) #attn_A is already in the same size of input, why need that?
+        concat_attn_A = self.attn_A
         self.fake_B = self.netG(self.real_A * (1. + concat_attn_A))
 
     def backward_D(self):
@@ -130,11 +135,13 @@ class Pix2PixAttnModel(BaseModel):
         self.forward()                   # compute fake images: G(A)
         # update D
         self.set_requires_grad(self.netD, True)  # enable backprop for D
+        self.set_requires_grad(self.netG, False)
         self.optimizer_D.zero_grad()     # set D's gradients to zero
         self.backward_D()                # calculate gradients for D
         self.optimizer_D.step()          # update D's weights
         # update G
         self.set_requires_grad(self.netD, False)  # D requires no gradients when optimizing G
+        self.set_requires_grad(self.netG, True)
         self.optimizer_G.zero_grad()        # set G's gradients to zero
         self.backward_G()                   # calculate graidents for G
         self.optimizer_G.step()             # udpate G's weights

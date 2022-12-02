@@ -1,4 +1,4 @@
-import os
+import os,glob,re
 import torch
 from collections import OrderedDict
 from abc import ABC, abstractmethod
@@ -30,10 +30,16 @@ class BaseModel(ABC):
             -- self.optimizers (optimizer list):    define and initialize optimizers. You can define one optimizer for each network. If two networks are updated at the same time, you can use itertools.chain to group them. See cycle_gan_model.py for an example.
         """
         self.opt = opt
-        self.gpu_ids = opt.gpu_ids
         self.isTrain = opt.isTrain
-        self.device = torch.device('cuda:{}'.format(self.gpu_ids[0])) if self.gpu_ids else torch.device('cpu')  # get device name: CPU or GPU
-        self.save_dir = os.path.join(opt.checkpoints_dir, opt.name)  # save all the checkpoints to save_dir
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # get device name: CPU or GPU
+        if torch.cuda.is_available():
+            print("Use GPU!")
+            for i in range(torch.cuda.device_count()):
+                print(torch.cuda.get_device_name(i))
+        else:
+            print("Use CPU!")
+        self.gpu_ids = self.device
+        self.save_dir = opt.checkpoints_dir  # save all the checkpoints to save_dir
         if opt.preprocess != 'scale_width':  # with [scale_width], input images might have different sizes, which hurts the performance of cudnn.benchmark.
             torch.backends.cudnn.benchmark = True
         self.loss_names = []
@@ -66,6 +72,20 @@ class BaseModel(ABC):
         pass
 
     @abstractmethod
+    def set_input_test(self, input):
+        pass
+
+    @abstractmethod
+    def sample_selfdistribution(self):
+        """Run sample pass; called by both functions <optimize_parameters> and <test>."""
+        pass
+
+    @abstractmethod
+    def sample(self):
+        """Run sample pass; called by both functions <optimize_parameters> and <test>."""
+        pass
+
+    @abstractmethod
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
         pass
@@ -75,7 +95,20 @@ class BaseModel(ABC):
         """Calculate losses, gradients, and update network weights; called in every training iteration"""
         pass
 
-    def setup(self, opt):
+    def test_selfdistri(self):
+        with torch.no_grad():
+            if self.opt.model == 'MUNIT' or self.opt.model == 'BiCycleGAN' \
+                or self.opt.model == 'MUNIT2S1C' or self.opt.model == 'MUNITSDG' \
+                    or self.opt.model == 'MUNITUC' or self.opt.model == 'MUNITSDGLCC'\
+                    or self.opt.model == 'MUNITUCCLE' or self.opt.model == 'MUNITSDGCRL'\
+                    or self.opt.model == 'DSBicycle' or self.opt.model == 'MUNIT3XIA' \
+                    or self.opt.model == 'MUNITTSG' or self.opt.model== 'MUNITFTSG':
+                self.sample_selfdistribution()
+            else:
+                self.forward()
+            self.compute_visuals()
+
+    def setup(self, opt, total_iters=0):
         """Load and print networks; create schedulers
 
         Parameters:
@@ -83,10 +116,18 @@ class BaseModel(ABC):
         """
         if self.isTrain:
             self.schedulers = [networks.get_scheduler(optimizer, opt) for optimizer in self.optimizers]
-        if not self.isTrain or opt.continue_train:
-            load_suffix = 'iter_%d' % opt.load_iter if opt.load_iter > 0 else opt.epoch
-            self.load_networks(load_suffix)
+        if opt.continue_train:
+            list_of_savednets = glob.glob(opt.checkpoints_dir + '/*net*')
+            if len(list_of_savednets)>0:
+                latest_net= max(list_of_savednets, key=os.path.getctime)
+                total_iters = int(keepnumeric(os.path.split(latest_net)[1]))
+                self.load_networks(total_iters)
+            else:
+                total_iters = 0
+        elif opt.loadbyiter:
+            self.load_networks(total_iters)
         self.print_networks(opt.verbose)
+        return total_iters
 
     def eval(self):
         """Make models eval mode during test time"""
@@ -102,7 +143,15 @@ class BaseModel(ABC):
         It also calls <compute_visuals> to produce additional visualization results
         """
         with torch.no_grad():
-            self.forward()
+            if self.opt.model == 'MUNIT' or self.opt.model == 'BiCycleGAN' \
+                or self.opt.model == 'MUNIT2S1C' or self.opt.model == 'MUNITSDG' \
+                    or self.opt.model == 'MUNITUC' or self.opt.model == 'MUNITSDGLCC'\
+                    or self.opt.model == 'MUNITUCCLE' or self.opt.model == 'MUNITSDGCRL'\
+                    or self.opt.model == 'DSBicycle' or self.opt.model == 'MUNIT3XIA' \
+                    or self.opt.model == 'MUNITTSG' or self.opt.model== 'MUNITFTSG':
+                self.sample()
+            else:
+                self.forward()
             self.compute_visuals()
 
     def compute_visuals(self):
@@ -152,11 +201,11 @@ class BaseModel(ABC):
                 save_path = os.path.join(self.save_dir, save_filename)
                 net = getattr(self, 'net' + name)
 
-                if len(self.gpu_ids) > 0 and torch.cuda.is_available():
-                    torch.save(net.module.cpu().state_dict(), save_path)
-                    net.cuda(self.gpu_ids[0])
+                if isinstance(net, torch.nn.DataParallel):
+                    torch.save(net.module.state_dict(), save_path)
+                    #net.cuda(self.gpu_ids) ?????
                 else:
-                    torch.save(net.cpu().state_dict(), save_path)
+                    torch.save(net.state_dict(), save_path)
 
     def __patch_instance_norm_state_dict(self, state_dict, module, keys, i=0):
         """Fix InstanceNorm checkpoints incompatibility (prior to 0.4)"""
@@ -227,3 +276,7 @@ class BaseModel(ABC):
             if net is not None:
                 for param in net.parameters():
                     param.requires_grad = requires_grad
+
+def keepnumeric(string):
+    nstr = re.sub("[^0-9]", "", string)
+    return nstr

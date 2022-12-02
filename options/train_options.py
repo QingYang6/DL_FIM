@@ -17,13 +17,14 @@ class TrainOptions(BaseOptions):
         parser.add_argument('--display_env', type=str, default='main', help='visdom display environment name (default is "main")')
         parser.add_argument('--display_port', type=int, default=8097, help='visdom port of the web display')
         parser.add_argument('--update_html_freq', type=int, default=1000, help='frequency of saving training results to html')
-        parser.add_argument('--print_freq', type=int, default=100, help='frequency of showing training results on console')
+        parser.add_argument('--print_freq', type=int, default=50, help='frequency of showing training results on console')
+        parser.add_argument('--predict_freq', type=int, default=20000, help='frequency to predict images in val and save')
         parser.add_argument('--no_html', action='store_true', help='do not save intermediate training results to [opt.checkpoints_dir]/[opt.name]/web/')
         # network saving and loading parameters
-        parser.add_argument('--save_latest_freq', type=int, default=5000, help='frequency of saving the latest results')
+        parser.add_argument('--save_latest_freq', type=int, default=500000000000, help='frequency of saving the latest results')
         parser.add_argument('--save_epoch_freq', type=int, default=5, help='frequency of saving checkpoints at the end of epochs')
-        parser.add_argument('--save_by_iter', action='store_true', help='whether saves model by iteration')
-        parser.add_argument('--continue_train', action='store_true', help='continue training: load the latest model')
+        parser.add_argument('--save_by_iter', type=str, default='False', help='whether to keep all inter save model, epoch save model will keep anyway')
+        parser.add_argument('--continue_train', type=str, default='True', help='continue training: load the latest model')
         parser.add_argument('--epoch_count', type=int, default=1, help='the starting epoch count, we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>, ...')
         parser.add_argument('--phase', type=str, default='train', help='train, val, test, etc')
         # training parameters

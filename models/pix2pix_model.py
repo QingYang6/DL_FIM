@@ -10,6 +10,7 @@ class Pix2PixModel(BaseModel):
     By default, it uses a '--netG unet256' U-Net generator,
     a '--netD basic' discriminator (PatchGAN),
     and a '--gan_mode' vanilla GAN loss (the cross-entropy objective used in the orignal GAN paper).
+    added 'wgangp' mode. Oct. 2022 Qing
 
     pix2pix paper: https://arxiv.org/pdf/1611.07004.pdf
     """
@@ -29,9 +30,10 @@ class Pix2PixModel(BaseModel):
         By default, we use vanilla GAN loss, UNet with batchnorm, and aligned datasets.
         """
         # changing the default values to match the pix2pix paper (https://phillipi.github.io/pix2pix/)
-        parser.set_defaults(norm='batch', netG='unet_256', dataset_mode='aligned')
+        # not neccesary the same Q 07162022
+        parser.set_defaults(norm='instance',netG='unet_256',netD='basic')
         if is_train:
-            parser.set_defaults(pool_size=0, gan_mode='vanilla')
+            parser.set_defaults(pool_size=0)
             parser.add_argument('--lambda_L1', type=float, default=100.0, help='weight for L1 loss')
 
         return parser
@@ -44,7 +46,11 @@ class Pix2PixModel(BaseModel):
         """
         BaseModel.__init__(self, opt)
         # specify the training losses you want to print out. The training/test scripts will call <BaseModel.get_current_losses>
-        self.loss_names = ['G_GAN', 'G_L1', 'D_real', 'D_fake']
+        if opt.gan_mode == 'wgangp':
+            self.loss_names = ['G_GAN', 'G_L1', 'D_real', 'D_fake','gradient_penalty']
+        else:
+            self.loss_names = ['G_GAN', 'G_L1', 'D_real', 'D_fake']
+        self.gan_mode = opt.gan_mode
         # specify the images you want to save/display. The training/test scripts will call <BaseModel.get_current_visuals>
         self.visual_names = ['real_A', 'fake_B', 'real_B']
         # specify the models you want to save to the disk. The training/test scripts will call <BaseModel.save_networks> and <BaseModel.load_networks>
@@ -65,7 +71,7 @@ class Pix2PixModel(BaseModel):
             self.criterionGAN = networks.GANLoss(opt.gan_mode).to(self.device)
             self.criterionL1 = torch.nn.L1Loss()
             # initialize optimizers; schedulers will be automatically created by function <BaseModel.setup>.
-            self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+            self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr/5, betas=(opt.beta1, 0.999))
             self.optimizer_D = torch.optim.Adam(self.netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizers.append(self.optimizer_G)
             self.optimizers.append(self.optimizer_D)
@@ -83,6 +89,10 @@ class Pix2PixModel(BaseModel):
         self.real_B = input['B' if AtoB else 'A'].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
+    def sample(self):
+        '''Just sample cross domain'''
+        self.fake_B = self.netG(self.real_A)  # G(A)
+
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
         self.fake_B = self.netG(self.real_A)  # G(A)
@@ -97,8 +107,17 @@ class Pix2PixModel(BaseModel):
         real_AB = torch.cat((self.real_A, self.real_B), 1)
         pred_real = self.netD(real_AB)
         self.loss_D_real = self.criterionGAN(pred_real, True)
-        # combine loss and calculate gradients
-        self.loss_D = (self.loss_D_fake + self.loss_D_real) * 0.5
+        # wgan-gp
+        if self.gan_mode == 'wgangp':
+            self.loss_gradient_penalty, gradients = networks.cal_gradient_penalty(
+                self.netD, torch.cat((self.real_A, self.real_B), 1), torch.cat((self.real_A, self.fake_B), 1), self.device, lambda_gp=10.0)
+            self.loss_gradient_penalty.backward(retain_graph=True)
+            self.loss_D = self.loss_D_fake + self.loss_D_real
+        elif self.gan_mode == 'wgan':
+            self.loss_D = self.loss_D_fake + self.loss_D_real
+        else:
+            # combine loss and calculate gradients
+            self.loss_D = (self.loss_D_fake + self.loss_D_real) * 0.5
         self.loss_D.backward()
 
     def backward_G(self):
