@@ -83,3 +83,4 @@ If you use this code or dataset for your research, please consider cite our pape
 - If your dataset has more than 3000 images, please adjust L57 of `attn_cycle_gan_model.py` accordingly
 
 
+# RAPID_GAN
