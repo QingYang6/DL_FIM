@@ -1,0 +1,123 @@
+LSB Version:	:core-4.1-amd64:core-4.1-noarch
+Distributor ID:	RedHatEnterprise
+Description:	Red Hat Enterprise Linux release 8.7 (Ootpa)
+Release:	8.7
+Codename:	Ootpa
+SLURM_JOBID 122694 SLURM_JOBID
+1.12.1
+----------------- Options ---------------
+                     CtoE: True                          
+                      DEM: True                          
+                NE_MARGIN: True                          
+          NE_MARGIN_VALUE: -0.25                         
+                    activ: lrelu                         
+                    batch: AdaIn                         	[default: batch]
+               batch_size: 10                            	[default: 1]
+                    beta1: 0.5                           
+          checkpoints_dir: checkpoints                   
+           continue_train: True                          
+                crop_size: 256                           
+                 dataroot: /gpfs/sharedfs1/manoslab/data/Qdata/GAN_CD/Sample_Preare/Huston/U10T24_S1S1S2_LCCDEM_O30_R200_128_QF	[default: None]
+             dataset_mode: S1S2IALCCDEM                  	[default: Land2S1]
+                direction: AtoB                          
+              display_env: main                          
+             display_freq: 400                           
+               display_id: 1                             
+            display_ncols: 4                             
+             display_port: 8097                          
+           display_server: http://localhost              
+          display_winsize: 256                           
+                    epoch: latest                        
+              epoch_count: 1                             
+                 gan_mode: wgangp                        	[default: lsgan]
+                    gan_w: 1                             
+                  gpu_ids: 0                             
+                init_gain: 0.02                          
+                init_type: kaiming                       
+                 input_nc: 6                             
+                  isTrain: True                          	[default: None]
+               lambda_LDS: 1                             
+               latent_dim: 9                             
+                load_iter: 0                             	[default: 0]
+                load_size: 256                           
+                  log_dir: log                           
+                       lr: 0.0004                        	[default: 0.0002]
+           lr_decay_iters: 50                            
+                lr_policy: linear                        
+              main_ex_dir: /gpfs/sharedfs1/manoslab/data/Qdata/GAN_OUTPUT
+         max_dataset_size: inf                           
+                  mlp_dim: 256                           
+                    model: MUNIT3XIA                     	[default: pix2pix_attn]
+             n_downsample: 2                             
+               n_layers_D: 3                             
+                    n_res: 4                             
+                     name: MUNIT3XIA_S1S1LIALCCDEMSLRL_diversity_U10_condi_SGD__S1S2IALCCDEM_MUNIT3XIA_AdaINGen_IA_wgangp_NormAdaIn_batchsize10	[default: experiment_name]
+                      ndf: 64                            
+                     netD: MsImageDis                    
+                     netG: AdaINGen_IA                   
+                      ngf: 64                            
+                    niter: 30                            	[default: 100]
+              niter_decay: 120                           	[default: 100]
+               no_dropout: True                          
+                  no_flip: False                         
+                  no_html: False                         
+                     norm: AdaIn                         
+                num_class: 1                             
+              num_threads: 8                             
+                output_nc: 2                             	[default: 1]
+                 pad_type: reflect                       
+                    phase: train                         
+                pool_size: 50                            
+             predict_freq: 20000                         
+               preprocess: resize_and_crop               
+               print_freq: 50                            
+                recon_c_w: 1                             
+                recon_s_w: 1                             
+            recon_x_cyc_w: 10                            
+                recon_x_w: 10                            
+              results_dir: results                       
+             save_by_iter: False                         
+          save_epoch_freq: 1                             	[default: 5]
+         save_latest_freq: 50000                         	[default: -1]
+           serial_batches: False                         
+              split_ratio: 0.02                          
+            split_shuffle: False                         
+                style_dim: 8                             
+                   suffix: _{dataset_mode}_{model}_{netG}_{gan_mode}_Norm{batch}_batchsize{batch_size}
+         update_html_freq: 1000                          
+               use_same_D: True                          
+               use_same_G: True                          
+             valid_batchs: 20                            
+              valid_nrows: 5                             
+                  verbose: False                         
+                    vgg_w: 0                             
+----------------- End -------------------
+Train dataset [S1S2IALCCDEMDataset] was created
+Vali dataset [Subset] was created
+The number of training images = 112331
+The number of validating images = 2293
+Use GPU!
+NVIDIA A100-PCIE-40GB
+initialize network with kaiming
+initialize network with kaiming
+/home/qiy17007/miniconda3/envs/torch3/lib/python3.9/site-packages/torch/nn/_reduction.py:42: UserWarning: size_average and reduce args will be deprecated, please use reduction='none' instead.
+  warnings.warn(warning.format(ret))
+model [MUNIT3XIAModel] was created
+loading the model from /gpfs/sharedfs1/manoslab/data/Qdata/GAN_OUTPUT/MUNIT3XIA_S1S1LIALCCDEMSLRL_diversity_U10_condi_SGD__S1S2IALCCDEM_MUNIT3XIA_AdaINGen_IA_wgangp_NormAdaIn_batchsize10/checkpoints/1032230_net_G_A.pth
+loading the model from /gpfs/sharedfs1/manoslab/data/Qdata/GAN_OUTPUT/MUNIT3XIA_S1S1LIALCCDEMSLRL_diversity_U10_condi_SGD__S1S2IALCCDEM_MUNIT3XIA_AdaINGen_IA_wgangp_NormAdaIn_batchsize10/checkpoints/1032230_net_D_A.pth
+---------- Networks initialized -------------
+[Network G_A] Total number of parameters : 38.705 M
+[Network D_A] Total number of parameters : 1.984 M
+-----------------------------------------------
+create web directory /gpfs/sharedfs1/manoslab/data/Qdata/GAN_OUTPUT/MUNIT3XIA_S1S1LIALCCDEMSLRL_diversity_U10_condi_SGD__S1S2IALCCDEM_MUNIT3XIA_AdaINGen_IA_wgangp_NormAdaIn_batchsize10/checkpoints/MUNIT3XIA_S1S1LIALCCDEMSLRL_diversity_U10_condi_SGD__S1S2IALCCDEM_MUNIT3XIA_AdaINGen_IA_wgangp_NormAdaIn_batchsize10/web...
+(epoch: 9, iters: 270, time: 0.095, data: 0.003) D_A: -0.0012 D_B: -0.0005 D_a2a: 0.0005 D_a2b: 0.0005 D_A_realsb: 0.0000 D_B_realsa: 0.0006 gp_A: 0.0001 gp_B: 0.0001 gp_a2a: 0.0002 gp_a2b: 0.0002 gp_A_realsb: 0.0002 gp_B_realsa: 0.0001 gen_adv_a: 0.2403 gen_recon_x_a: 0.1864 gen_cycrecon_x_a: 0.1864 gen_recon_s_a: 0.0238 gen_recon_c_a: 0.0007 gen_vgg_a: 0.0000 gen_adv_b: 0.2390 gen_recon_x_b: 0.1912 gen_cycrecon_x_b: 0.1912 gen_recon_s_b: 0.0276 gen_recon_c_b: 0.0007 gen_vgg_b: 0.0000 gen_recon_x_a2: 0.1715 gen_recon_s_a2aprime: 0.0011 gen_recon_s_a2bprime: 0.0009 gen_recon_c_a2a: 0.0005 gen_recon_c_a2b: 0.0005 gen_cycrecon_x_a2aa2: 0.1715 gen_cycrecon_x_a2ba2: 0.1715 gen_adv_a2a: 0.2525 gen_adv_a2b: 0.2525 gen_adv_arealb: 0.2389 gen_adv_breala: 0.2387 DS_xa: -4.6407 DS_xb: -4.5658 DS_xc_sa: -4.3482 DS_xc_sb: -4.0010 
+(epoch: 9, iters: 770, time: 0.096, data: 0.004) D_A: 0.0011 D_B: 0.0009 D_a2a: -0.0005 D_a2b: -0.0005 D_A_realsb: 0.0002 D_B_realsa: 0.0005 gp_A: 0.0004 gp_B: 0.0002 gp_a2a: 0.0003 gp_a2b: 0.0002 gp_A_realsb: 0.0003 gp_B_realsa: 0.0003 gen_adv_a: 0.1900 gen_recon_x_a: 0.1693 gen_cycrecon_x_a: 0.1693 gen_recon_s_a: 0.0316 gen_recon_c_a: 0.0007 gen_vgg_a: 0.0000 gen_adv_b: 0.1906 gen_recon_x_b: 0.1778 gen_cycrecon_x_b: 0.1778 gen_recon_s_b: 0.0287 gen_recon_c_b: 0.0007 gen_vgg_b: 0.0000 gen_recon_x_a2: 0.1879 gen_recon_s_a2aprime: 0.0010 gen_recon_s_a2bprime: 0.0010 gen_recon_c_a2a: 0.0007 gen_recon_c_a2b: 0.0007 gen_cycrecon_x_a2aa2: 0.1879 gen_cycrecon_x_a2ba2: 0.1879 gen_adv_a2a: 0.1885 gen_adv_a2b: 0.1885 gen_adv_arealb: 0.1909 gen_adv_breala: 0.1907 DS_xa: -3.3741 DS_xb: -3.3568 DS_xc_sa: -4.3485 DS_xc_sb: -3.8860 
+(epoch: 9, iters: 1270, time: 0.096, data: 0.004) D_A: 0.0025 D_B: 0.0029 D_a2a: 0.0033 D_a2b: 0.0037 D_A_realsb: 0.0026 D_B_realsa: 0.0026 gp_A: 0.0027 gp_B: 0.0028 gp_a2a: 0.0028 gp_a2b: 0.0028 gp_A_realsb: 0.0025 gp_B_realsa: 0.0024 gen_adv_a: 0.1942 gen_recon_x_a: 0.1736 gen_cycrecon_x_a: 0.1736 gen_recon_s_a: 0.0180 gen_recon_c_a: 0.0007 gen_vgg_a: 0.0000 gen_adv_b: 0.1944 gen_recon_x_b: 0.1732 gen_cycrecon_x_b: 0.1732 gen_recon_s_b: 0.0175 gen_recon_c_b: 0.0008 gen_vgg_b: 0.0000 gen_recon_x_a2: 0.1838 gen_recon_s_a2aprime: 0.0010 gen_recon_s_a2bprime: 0.0011 gen_recon_c_a2a: 0.0006 gen_recon_c_a2b: 0.0006 gen_cycrecon_x_a2aa2: 0.1838 gen_cycrecon_x_a2ba2: 0.1838 gen_adv_a2a: 0.1937 gen_adv_a2b: 0.1933 gen_adv_arealb: 0.1936 gen_adv_breala: 0.1935 DS_xa: -4.2113 DS_xb: -4.2083 DS_xc_sa: -3.1064 DS_xc_sb: -2.9605 
+(epoch: 9, iters: 1770, time: 0.096, data: 0.004) D_A: 0.0033 D_B: 0.0048 D_a2a: 0.0000 D_a2b: 0.0002 D_A_realsb: 0.0005 D_B_realsa: 0.0005 gp_A: 0.0003 gp_B: 0.0003 gp_a2a: 0.0002 gp_a2b: 0.0002 gp_A_realsb: 0.0001 gp_B_realsa: 0.0001 gen_adv_a: -0.1049 gen_recon_x_a: 0.1867 gen_cycrecon_x_a: 0.1867 gen_recon_s_a: 0.0244 gen_recon_c_a: 0.0012 gen_vgg_a: 0.0000 gen_adv_b: -0.1074 gen_recon_x_b: 0.1952 gen_cycrecon_x_b: 0.1952 gen_recon_s_b: 0.0229 gen_recon_c_b: 0.0012 gen_vgg_b: 0.0000 gen_recon_x_a2: 0.1802 gen_recon_s_a2aprime: 0.0011 gen_recon_s_a2bprime: 0.0012 gen_recon_c_a2a: 0.0006 gen_recon_c_a2b: 0.0006 gen_cycrecon_x_a2aa2: 0.1802 gen_cycrecon_x_a2ba2: 0.1802 gen_adv_a2a: -0.0831 gen_adv_a2b: -0.0833 gen_adv_arealb: -0.1062 gen_adv_breala: -0.1062 DS_xa: -2.7173 DS_xb: -2.6982 DS_xc_sa: -3.4784 DS_xc_sb: -3.5745 
+(epoch: 9, iters: 2270, time: 0.096, data: 0.004) D_A: -0.0015 D_B: -0.0019 D_a2a: 0.0013 D_a2b: 0.0014 D_A_realsb: 0.0005 D_B_realsa: 0.0004 gp_A: 0.0002 gp_B: 0.0002 gp_a2a: 0.0010 gp_a2b: 0.0010 gp_A_realsb: 0.0002 gp_B_realsa: 0.0002 gen_adv_a: -0.1333 gen_recon_x_a: 0.1625 gen_cycrecon_x_a: 0.1625 gen_recon_s_a: 0.0289 gen_recon_c_a: 0.0007 gen_vgg_a: 0.0000 gen_adv_b: -0.1350 gen_recon_x_b: 0.1636 gen_cycrecon_x_b: 0.1636 gen_recon_s_b: 0.0349 gen_recon_c_b: 0.0007 gen_vgg_b: 0.0000 gen_recon_x_a2: 0.1762 gen_recon_s_a2aprime: 0.0013 gen_recon_s_a2bprime: 0.0014 gen_recon_c_a2a: 0.0006 gen_recon_c_a2b: 0.0006 gen_cycrecon_x_a2aa2: 0.1762 gen_cycrecon_x_a2ba2: 0.1762 gen_adv_a2a: -0.2285 gen_adv_a2b: -0.2286 gen_adv_arealb: -0.1373 gen_adv_breala: -0.1371 DS_xa: -3.1005 DS_xb: -3.1155 DS_xc_sa: -3.2031 DS_xc_sb: -3.4311 
+(epoch: 9, iters: 2770, time: 0.096, data: 0.004) D_A: -0.0004 D_B: -0.0005 D_a2a: -0.0001 D_a2b: 0.0000 D_A_realsb: 0.0006 D_B_realsa: 0.0001 gp_A: 0.0001 gp_B: 0.0001 gp_a2a: 0.0003 gp_a2b: 0.0002 gp_A_realsb: 0.0002 gp_B_realsa: 0.0002 gen_adv_a: -0.1917 gen_recon_x_a: 0.1566 gen_cycrecon_x_a: 0.1566 gen_recon_s_a: 0.0223 gen_recon_c_a: 0.0006 gen_vgg_a: 0.0000 gen_adv_b: -0.1917 gen_recon_x_b: 0.1821 gen_cycrecon_x_b: 0.1821 gen_recon_s_b: 0.0238 gen_recon_c_b: 0.0006 gen_vgg_b: 0.0000 gen_recon_x_a2: 0.1640 gen_recon_s_a2aprime: 0.0009 gen_recon_s_a2bprime: 0.0010 gen_recon_c_a2a: 0.0006 gen_recon_c_a2b: 0.0006 gen_cycrecon_x_a2aa2: 0.1640 gen_cycrecon_x_a2ba2: 0.1640 gen_adv_a2a: -0.2165 gen_adv_a2b: -0.2167 gen_adv_arealb: -0.1929 gen_adv_breala: -0.1928 DS_xa: -3.8874 DS_xb: -3.8972 DS_xc_sa: -3.5474 DS_xc_sb: -3.6234 
+(epoch: 9, iters: 3270, time: 0.097, data: 0.004) D_A: 0.0008 D_B: -0.0001 D_a2a: 0.0002 D_a2b: 0.0003 D_A_realsb: 0.0006 D_B_realsa: 0.0007 gp_A: 0.0004 gp_B: 0.0004 gp_a2a: 0.0002 gp_a2b: 0.0003 gp_A_realsb: 0.0004 gp_B_realsa: 0.0004 gen_adv_a: -0.1292 gen_recon_x_a: 0.1665 gen_cycrecon_x_a: 0.1665 gen_recon_s_a: 0.0216 gen_recon_c_a: 0.0007 gen_vgg_a: 0.0000 gen_adv_b: -0.1278 gen_recon_x_b: 0.1559 gen_cycrecon_x_b: 0.1559 gen_recon_s_b: 0.0242 gen_recon_c_b: 0.0006 gen_vgg_b: 0.0000 gen_recon_x_a2: 0.1852 gen_recon_s_a2aprime: 0.0010 gen_recon_s_a2bprime: 0.0009 gen_recon_c_a2a: 0.0006 gen_recon_c_a2b: 0.0006 gen_cycrecon_x_a2aa2: 0.1852 gen_cycrecon_x_a2ba2: 0.1852 gen_adv_a2a: -0.1673 gen_adv_a2b: -0.1673 gen_adv_arealb: -0.1293 gen_adv_breala: -0.1293 DS_xa: -4.5660 DS_xb: -4.6004 DS_xc_sa: -3.4112 DS_xc_sb: -3.5667 
+(epoch: 9, iters: 3770, time: 0.098, data: 0.004) D_A: 0.0019 D_B: 0.0020 D_a2a: 0.0005 D_a2b: 0.0008 D_A_realsb: 0.0007 D_B_realsa: 0.0011 gp_A: 0.0007 gp_B: 0.0006 gp_a2a: 0.0001 gp_a2b: 0.0001 gp_A_realsb: 0.0007 gp_B_realsa: 0.0007 gen_adv_a: -0.2043 gen_recon_x_a: 0.1741 gen_cycrecon_x_a: 0.1741 gen_recon_s_a: 0.0220 gen_recon_c_a: 0.0007 gen_vgg_a: 0.0000 gen_adv_b: -0.2045 gen_recon_x_b: 0.1600 gen_cycrecon_x_b: 0.1600 gen_recon_s_b: 0.0215 gen_recon_c_b: 0.0007 gen_vgg_b: 0.0000 gen_recon_x_a2: 0.1545 gen_recon_s_a2aprime: 0.0010 gen_recon_s_a2bprime: 0.0010 gen_recon_c_a2a: 0.0005 gen_recon_c_a2b: 0.0005 gen_cycrecon_x_a2aa2: 0.1545 gen_cycrecon_x_a2ba2: 0.1545 gen_adv_a2a: -0.1892 gen_adv_a2b: -0.1894 gen_adv_arealb: -0.2036 gen_adv_breala: -0.2036 DS_xa: -3.2253 DS_xb: -3.1543 DS_xc_sa: -3.2860 DS_xc_sb: -3.7120 
+(epoch: 9, iters: 4270, time: 0.096, data: 0.005) D_A: 0.0012 D_B: 0.0025 D_a2a: -0.0007 D_a2b: -0.0011 D_A_realsb: 0.0002 D_B_realsa: 0.0009 gp_A: 0.0002 gp_B: 0.0002 gp_a2a: 0.0002 gp_a2b: 0.0002 gp_A_realsb: 0.0002 gp_B_realsa: 0.0002 gen_adv_a: -0.1811 gen_recon_x_a: 0.1881 gen_cycrecon_x_a: 0.1881 gen_recon_s_a: 0.0195 gen_recon_c_a: 0.0009 gen_vgg_a: 0.0000 gen_adv_b: -0.1823 gen_recon_x_b: 0.1661 gen_cycrecon_x_b: 0.1661 gen_recon_s_b: 0.0239 gen_recon_c_b: 0.0008 gen_vgg_b: 0.0000 gen_recon_x_a2: 0.1561 gen_recon_s_a2aprime: 0.0020 gen_recon_s_a2bprime: 0.0020 gen_recon_c_a2a: 0.0005 gen_recon_c_a2b: 0.0005 gen_cycrecon_x_a2aa2: 0.1561 gen_cycrecon_x_a2ba2: 0.1561 gen_adv_a2a: -0.1240 gen_adv_a2b: -0.1236 gen_adv_arealb: -0.1806 gen_adv_breala: -0.1808 DS_xa: -3.7700 DS_xb: -3.6486 DS_xc_sa: -3.9035 DS_xc_sb: -4.2321 
+(epoch: 9, iters: 4770, time: 0.096, data: 0.006) D_A: 0.0030 D_B: 0.0044 D_a2a: 0.0014 D_a2b: 0.0012 D_A_realsb: 0.0014 D_B_realsa: 0.0033 gp_A: 0.0022 gp_B: 0.0023 gp_a2a: 0.0020 gp_a2b: 0.0020 gp_A_realsb: 0.0022 gp_B_realsa: 0.0022 gen_adv_a: -0.2426 gen_recon_x_a: 0.1880 gen_cycrecon_x_a: 0.1880 gen_recon_s_a: 0.0218 gen_recon_c_a: 0.0007 gen_vgg_a: 0.0000 gen_adv_b: -0.2431 gen_recon_x_b: 0.1763 gen_cycrecon_x_b: 0.1763 gen_recon_s_b: 0.0222 gen_recon_c_b: 0.0007 gen_vgg_b: 0.0000 gen_recon_x_a2: 0.1674 gen_recon_s_a2aprime: 0.0010 gen_recon_s_a2bprime: 0.0010 gen_recon_c_a2a: 0.0006 gen_recon_c_a2b: 0.0006 gen_cycrecon_x_a2aa2: 0.1674 gen_cycrecon_x_a2ba2: 0.1674 gen_adv_a2a: -0.2153 gen_adv_a2b: -0.2151 gen_adv_arealb: -0.2414 gen_adv_breala: -0.2424 DS_xa: -3.2920 DS_xb: -3.2974 DS_xc_sa: -4.7661 DS_xc_sb: -3.6690 
+(epoch: 9, iters: 5270, time: 0.097, data: 0.004) D_A: 0.0017 D_B: 0.0020 D_a2a: -0.0010 D_a2b: -0.0007 D_A_realsb: 0.0008 D_B_realsa: -0.0006 gp_A: 0.0001 gp_B: 0.0001 gp_a2a: 0.0000 gp_a2b: 0.0000 gp_A_realsb: 0.0001 gp_B_realsa: 0.0001 gen_adv_a: -0.1913 gen_recon_x_a: 0.1685 gen_cycrecon_x_a: 0.1685 gen_recon_s_a: 0.0241 gen_recon_c_a: 0.0007 gen_vgg_a: 0.0000 gen_adv_b: -0.1918 gen_recon_x_b: 0.1449 gen_cycrecon_x_b: 0.1449 gen_recon_s_b: 0.0211 gen_recon_c_b: 0.0007 gen_vgg_b: 0.0000 gen_recon_x_a2: 0.1566 gen_recon_s_a2aprime: 0.0010 gen_recon_s_a2bprime: 0.0009 gen_recon_c_a2a: 0.0005 gen_recon_c_a2b: 0.0006 gen_cycrecon_x_a2aa2: 0.1566 gen_cycrecon_x_a2ba2: 0.1566 gen_adv_a2a: -0.2203 gen_adv_a2b: -0.2205 gen_adv_arealb: -0.1903 gen_adv_breala: -0.1895 DS_xa: -3.4218 DS_xb: -3.3975 DS_xc_sa: -3.3371 DS_xc_sb: -3.2335 

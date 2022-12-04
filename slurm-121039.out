@@ -1,0 +1,137 @@
+LSB Version:	:core-4.1-amd64:core-4.1-noarch
+Distributor ID:	RedHatEnterprise
+Description:	Red Hat Enterprise Linux release 8.7 (Ootpa)
+Release:	8.7
+Codename:	Ootpa
+SLURM_JOBID 121039 SLURM_JOBID
+1.12.1
+----------------- Options ---------------
+                     CtoE: False                         
+                      DEM: True                          
+                    activ: lrelu                         
+                    batch: AdaIn                         	[default: batch]
+               batch_size: 10                            	[default: 1]
+                    beta1: 0.5                           
+          checkpoints_dir: checkpoints                   
+           continue_train: True                          
+                crop_size: 256                           
+                 dataroot: /gpfs/sharedfs1/manoslab/data/Qdata/GAN_CD/Sample_Preare/Huston/U10T24_S1S1S2_LCCDEM_O30_R200_128_QF	[default: None]
+             dataset_mode: S1S2IALCCDEM                  	[default: Land2S1]
+                direction: AtoB                          
+              display_env: main                          
+             display_freq: 400                           
+               display_id: 1                             
+            display_ncols: 4                             
+             display_port: 8097                          
+           display_server: http://localhost              
+          display_winsize: 256                           
+                    epoch: latest                        
+              epoch_count: 1                             
+                 gan_mode: wgangp                        	[default: lsgan]
+                    gan_w: 1                             
+                  gpu_ids: 0                             
+                init_gain: 0.02                          
+                init_type: kaiming                       
+                 input_nc: 4                             	[default: 6]
+                  isTrain: True                          	[default: None]
+               latent_dim: 9                             
+                load_iter: 0                             	[default: 0]
+                load_size: 256                           
+                  log_dir: log                           
+                       lr: 0.0004                        	[default: 0.0002]
+           lr_decay_iters: 50                            
+                lr_policy: linear                        
+              main_ex_dir: /gpfs/sharedfs1/manoslab/data/Qdata/GAN_OUTPUT
+         max_dataset_size: inf                           
+                  mlp_dim: 256                           
+                    model: FTSGINC                       	[default: pix2pix_attn]
+             n_downsample: 2                             
+               n_layers_D: 3                             
+                    n_res: 4                             
+                     name: FTSGINC_S1S2IALCCDEM_U10_TD_condi__S1S2IALCCDEM_FTSGINC_AdaINGen_3E_wgangp_NormAdaIn_batchsize10	[default: experiment_name]
+                      ndf: 64                            
+                     netD: MsImageDis                    
+                     netG: AdaINGen_3E                   
+                      ngf: 64                            
+                    niter: 50                            	[default: 100]
+              niter_decay: 300                           	[default: 100]
+               no_dropout: True                          
+                  no_flip: False                         
+                  no_html: False                         
+                     norm: AdaIn                         
+                num_class: 1                             
+              num_threads: 8                             
+                output_nc: 2                             	[default: 1]
+                 pad_type: reflect                       
+                    phase: train                         
+                pool_size: 50                            
+             predict_freq: 20000                         
+               preprocess: resize_and_crop               
+               print_freq: 50                            
+                recon_c_w: 1                             
+                recon_s_w: 1                             
+            recon_x_cyc_w: 10                            
+                recon_x_w: 10                            
+              results_dir: results                       
+             save_by_iter: False                         
+          save_epoch_freq: 1                             	[default: 5]
+         save_latest_freq: 500000000000                  
+           serial_batches: False                         
+              split_ratio: 0.02                          
+            split_shuffle: False                         
+                style_dim: 8                             
+                   suffix: _{dataset_mode}_{model}_{netG}_{gan_mode}_Norm{batch}_batchsize{batch_size}
+         update_html_freq: 1000                          
+               use_same_D: False                         
+               use_same_G: True                          
+             valid_batchs: 20                            
+              valid_nrows: 5                             
+                  verbose: False                         
+                    vgg_w: 1                             
+----------------- End -------------------
+Train dataset [S1S2IALCCDEMDataset] was created
+Vali dataset [Subset] was created
+The number of training images = 97938
+The number of validating images = 1999
+Use GPU!
+NVIDIA A100-PCIE-40GB
+initialize network with kaiming
+/home/qiy17007/miniconda3/envs/torch3/lib/python3.9/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and will be removed in 0.15, please use 'weights' instead.
+  warnings.warn(
+/home/qiy17007/miniconda3/envs/torch3/lib/python3.9/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and will be removed in 0.15. The current behavior is equivalent to passing `weights=VGG16_Weights.IMAGENET1K_V1`. You can also use `weights=VGG16_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+initialize network with kaiming
+initialize network with kaiming
+model [FTSGINCModel] was created
+---------- Networks initialized -------------
+[Network G_A] Total number of parameters : 49.464 M
+[Network D_A] Total number of parameters : 1.980 M
+[Network D_B] Total number of parameters : 1.980 M
+-----------------------------------------------
+create web directory /gpfs/sharedfs1/manoslab/data/Qdata/GAN_OUTPUT/FTSGINC_S1S2IALCCDEM_U10_TD_condi__S1S2IALCCDEM_FTSGINC_AdaINGen_3E_wgangp_NormAdaIn_batchsize10/checkpoints/FTSGINC_S1S2IALCCDEM_U10_TD_condi__S1S2IALCCDEM_FTSGINC_AdaINGen_3E_wgangp_NormAdaIn_batchsize10/web...
+Traceback (most recent call last):
+  File "/shared/stormcenter/Qing_Y/GAN_ChangeDetection/ASGIT/train_novisdom.py", line 79, in <module>
+    model.optimize_parameters()   # calculate loss functions, get gradients, update network weights
+  File "/shared/stormcenter/Qing_Y/GAN_ChangeDetection/ASGIT/models/FTSGINC_model.py", line 344, in optimize_parameters
+    self.backward_G()                   # calculate graidents for G
+  File "/shared/stormcenter/Qing_Y/GAN_ChangeDetection/ASGIT/models/FTSGINC_model.py", line 241, in backward_G
+    self.loss_Icp_xa_cascita = self.InceptionLoss(self.netIcp,self.xa_cascita,self.real_A) * self.opt.vgg_w if self.opt.vgg_w > 0 else None
+  File "/shared/stormcenter/Qing_Y/GAN_ChangeDetection/ASGIT/models/FTSGINC_model.py", line 283, in InceptionLoss
+    loss = self.criterionCycle(self.T3C(netICP(real)),self.T3C(netICP(fake)))
+  File "/shared/stormcenter/Qing_Y/GAN_ChangeDetection/ASGIT/models/networks.py", line 1895, in model_fn
+    def model_fn(x): return model(x)[0].squeeze(-1).squeeze(-1)
+  File "/home/qiy17007/miniconda3/envs/torch3/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/shared/stormcenter/Qing_Y/GAN_ChangeDetection/ASGIT/models/networks.py", line 1927, in forward
+    x = self.features(x)
+  File "/home/qiy17007/miniconda3/envs/torch3/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/qiy17007/miniconda3/envs/torch3/lib/python3.9/site-packages/torch/nn/modules/container.py", line 139, in forward
+    input = module(input)
+  File "/home/qiy17007/miniconda3/envs/torch3/lib/python3.9/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/qiy17007/miniconda3/envs/torch3/lib/python3.9/site-packages/torch/nn/modules/conv.py", line 457, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "/home/qiy17007/miniconda3/envs/torch3/lib/python3.9/site-packages/torch/nn/modules/conv.py", line 453, in _conv_forward
+    return F.conv2d(input, weight, bias, self.stride,
+RuntimeError: Given groups=1, weight of size [64, 3, 3, 3], expected input[10, 2, 128, 128] to have 3 channels, but got 2 channels instead
