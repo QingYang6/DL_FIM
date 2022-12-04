@@ -16,6 +16,7 @@ python3 -u /shared/stormcenter/Qing_Y/GAN_ChangeDetection/ASGIT/train_novisdom.p
 --output_nc=2 \
 --dataset_mode=S1S2IALCCDEM \
 --save_epoch_freq=1 \
+--save_latest_freq=50000 \
 --batch=AdaIn \
 --gan_mode=wgangp \
 --num_threads=8 \

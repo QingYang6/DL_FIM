@@ -92,8 +92,8 @@ class MUNIT3XIAModel(BaseModel):
         if self.isTrain:
             # define loss functions
             self.criterionGAN = networks.GANLoss(opt.gan_mode).to(self.device)  # define GAN loss.
-            self.criterionCycle = torch.nn.L1Loss()
-            self.recon_criterion = torch.nn.L1Loss()
+            self.criterionCycle = torch.nn.L1Loss().to(self.device)
+            self.recon_criterion = torch.nn.L1Loss().to(self.device)
             self.criterionDS = torch.nn.L1Loss(reduce=False).to(self.device)
             # initialize optimizers; schedulers will be automatically created by function <BaseModel.setup>.
             self.optimizer_G = torch.optim.Adam(self.netG_A.parameters(), lr=opt.lr/4, betas=(opt.beta1, 0.999))

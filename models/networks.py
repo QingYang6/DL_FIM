@@ -6,6 +6,8 @@ import functools
 from torch.optim import lr_scheduler
 from torch.nn import functional as func
 from models.ResNet import *
+from models.inception_pytorch import InceptionV3
+import torchvision
 
 
 ###############################################################################
@@ -173,8 +175,8 @@ def define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, in
         net = AdaINGen2C1S(input_nc, output_nc, ngf, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim)
     elif netG == 'AdaINGen_IA':
         net = AdaINGen_IA(input_nc, output_nc, ngf, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim)
-    elif netG == 'AdaINGen_TWOE':
-        net = AdaINGen_TWOE(input_nc, output_nc, ngf, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim)
+    elif netG == 'AdaINGen_3X2E':
+        net = AdaINGen_3X2E(input_nc, output_nc, ngf, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim)
     elif netG == 'AdaINGen_3E':
         net = AdaINGen_3E(input_nc, output_nc, ngf, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim)
     elif netG == 'VAEGen':
@@ -1498,18 +1500,19 @@ class AdaINGen_IA(nn.Module):
                 num_adain_params += 2*m.num_features
         return num_adain_params
 
-class AdaINGen_TWOE(nn.Module):
+class AdaINGen_3X2E(nn.Module):
     # AdaIN auto-encoder architecture
     def __init__(self, input_dim, output_dim, dim, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim):
-        super(AdaINGen_TWOE, self).__init__()
+        super(AdaINGen_3X2E, self).__init__()
 
         # style encoder
         self.enc_style = StyleEncoder(4, input_dim, dim, style_dim, norm='none', activ=activ, pad_type=pad_type)
 
         # content encoder
         self.enc_content = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type)
-        self.enc_sec_content = ContentEncoder(n_downsample, n_res, 9, dim, 'in', activ, pad_type=pad_type)
-        self.dec = Decoder(n_downsample, n_res, self.enc_content.output_dim, output_dim, res_norm='adain', activ=activ, pad_type=pad_type)
+        self.enc_condi = ContentEncoder(n_downsample, n_res, 4, dim, 'in', activ, pad_type=pad_type)
+        self.enc_condi_X = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type)
+        self.dec = Decoder(n_downsample, n_res, self.enc_content.output_dim*2, output_dim, res_norm='adain', activ=activ, pad_type=pad_type)
 
         # MLP to generate AdaIN parameters
         self.mlp = MLP(style_dim, self.get_num_adain_params(self.dec), mlp_dim, 3, norm='none', activ=activ)
@@ -1520,22 +1523,24 @@ class AdaINGen_TWOE(nn.Module):
         images_recon = self.decode(content, style_fake)
         return images_recon
 
-    def encode_sec_content(self, images):
+    def encode_condi(self, images):
         # encode condition to latent
-        condi = self.enc_sec_content(images)
+        condi = self.enc_condi(images)
         return condi
 
     def encode(self, images):
         # encode an image to its content and style codes
         style_fake = self.enc_style(images)
         content = self.enc_content(images)
-        return content, style_fake
+        condi = self.enc_condi_X(images)
+        return content, style_fake, condi
 
-    def decode(self, content, style):
+    def decode(self, content, style, condi):
         # decode content and style codes to an image
         adain_params = self.mlp(style)
         self.assign_adain_params(adain_params, self.dec)
-        images = self.dec(content)
+        con_cat = torch.cat((content,condi), 1)
+        images = self.dec(con_cat)
         return images
 
     def assign_adain_params(self, adain_params, model):
@@ -1864,60 +1869,68 @@ class LinearBlock(nn.Module):
         if self.activation:
             out = self.activation(out)
         return out
-
 ##################################################################################
-# VGG network definition (MUNIT)
+# build feature network 
+##################################################################################       
+def Build_feature_extractor(mode, device=torch.device("cuda"), use_dataparallel=False):
+    if torch.cuda.device_count() > 1:
+            use_dataparallel=True
+    if mode == "legacy_pytorch":
+        feat_model = feature_extractor(name="pytorch_inception", resize_inside=False, device=device, use_dataparallel=use_dataparallel)
+    elif mode == "legacy_tensorflow":
+        feat_model = feature_extractor(name="torchscript_inception", resize_inside=True, device=device, use_dataparallel=use_dataparallel)
+    elif mode == "clean":
+        feat_model = feature_extractor(name="torchscript_inception", resize_inside=False, device=device, use_dataparallel=use_dataparallel)
+    return feat_model
+
+def feature_extractor(name, device=torch.device("cuda"), resize_inside=False, use_dataparallel=False, size=128):
+    if name == "pytorch_inception":
+        model = InceptionV3(output_blocks=[3], resize_input=False).to(device)
+        model.eval()
+        if use_dataparallel:
+            model = torch.nn.DataParallel(model)
+        def model_fn(x): return model(x)[0].squeeze(-1).squeeze(-1)
+    elif name == "Custom_VGG":
+        model = Custom_VGG(ipt_size=(size,size), pretrained=True).to(device)
+        model.eval()
+        if use_dataparallel:
+            model = torch.nn.DataParallel(model)
+        def model_fn(x): return model(x)[0].squeeze(-1).squeeze(-1)
+    else:
+        raise ValueError(f"{name} feature extractor not implemented")
+    return model_fn
 ##################################################################################
-class Vgg16(nn.Module):
-    def __init__(self):
-        super(Vgg16, self).__init__()
-        self.conv1_1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
-        self.conv1_2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1)
+# VGG network
+##################################################################################
+from torchvision.models.vgg import model_urls
+VGG_TYPES = {'vgg11' : torchvision.models.vgg11, 
+             'vgg11_bn' : torchvision.models.vgg11_bn, 
+             'vgg13' : torchvision.models.vgg13, 
+             'vgg13_bn' : torchvision.models.vgg13_bn, 
+             'vgg16' : torchvision.models.vgg16, 
+             'vgg16_bn' : torchvision.models.vgg16_bn,
+             'vgg19_bn' : torchvision.models.vgg19_bn, 
+             'vgg19' : torchvision.models.vgg19}
 
-        self.conv2_1 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
-        self.conv2_2 = nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1)
+class Custom_VGG(nn.Module):
+    def __init__(self,
+                 ipt_size=(128, 128), 
+                 pretrained=True, 
+                 vgg_type='vgg16', 
+                 num_classes=1000):
+        super(Custom_VGG, self).__init__()
 
-        self.conv3_1 = nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)
-        self.conv3_2 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
-        self.conv3_3 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)
+        # load convolutional part of vgg
+        assert vgg_type in VGG_TYPES, "Unknown vgg_type '{}'".format(vgg_type)
+        vgg_loader = VGG_TYPES[vgg_type]
+        vgg = vgg_loader(pretrained=pretrained)
+        self.features = vgg.features
 
-        self.conv4_1 = nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1)
-        self.conv4_2 = nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1)
-        self.conv4_3 = nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1)
-
-        self.conv5_1 = nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1)
-        self.conv5_2 = nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1)
-        self.conv5_3 = nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1)
-
-    def forward(self, X):
-        h = func.relu(self.conv1_1(X), inplace=True)
-        h = func.relu(self.conv1_2(h), inplace=True)
-        # relu1_2 = h
-        h = func.max_pool2d(h, kernel_size=2, stride=2)
-
-        h = func.relu(self.conv2_1(h), inplace=True)
-        h = func.relu(self.conv2_2(h), inplace=True)
-        # relu2_2 = h
-        h = func.max_pool2d(h, kernel_size=2, stride=2)
-
-        h = func.relu(self.conv3_1(h), inplace=True)
-        h = func.relu(self.conv3_2(h), inplace=True)
-        h = func.relu(self.conv3_3(h), inplace=True)
-        # relu3_3 = h
-        h = func.max_pool2d(h, kernel_size=2, stride=2)
-
-        h = func.relu(self.conv4_1(h), inplace=True)
-        h = func.relu(self.conv4_2(h), inplace=True)
-        h = func.relu(self.conv4_3(h), inplace=True)
-        # relu4_3 = h
-
-        h = func.relu(self.conv5_1(h), inplace=True)
-        h = func.relu(self.conv5_2(h), inplace=True)
-        h = func.relu(self.conv5_3(h), inplace=True)
-        relu5_3 = h
-
-        return relu5_3
-        # return [relu1_2, relu2_2, relu3_3, relu4_3]
+    def forward(self, x):
+        x = self.features(x)
+        #x = x.view(x.size(0), -1)
+        #x = self.classifier(x)
+        return x
 
 ##################################################################################
 # Normalization layers (MUNIT)

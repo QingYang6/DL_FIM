@@ -81,8 +81,8 @@ class MUNITFTSGModel(BaseModel):
         if self.isTrain:
             # define loss functions
             self.criterionGAN = networks.GANLoss(opt.gan_mode).to(self.device)  # define GAN loss.
-            self.criterionCycle = torch.nn.L1Loss()
-            self.recon_criterion = torch.nn.L1Loss()
+            self.criterionCycle = torch.nn.L1Loss().to(self.device)
+            self.recon_criterion = torch.nn.L1Loss().to(self.device)
             # initialize optimizers; schedulers will be automatically created by function <BaseModel.setup>.
             self.optimizer_G = torch.optim.Adam(self.netG_A.parameters(), lr=opt.lr/4, betas=(opt.beta1, 0.999))
             self.optimizer_D = torch.optim.Adam(self.netD_A.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
@@ -168,8 +168,8 @@ class MUNITFTSGModel(BaseModel):
         _, style,condiC = self.netG_A.encode(self.realC_C)
         content = self.netG_A.enc_sec_content(self.realB_C)
         self.fake_B = self.netG_A.decode(content, style, condiC)
-        self.real_A = self.netG_A.decode(content_A, style, condiC)
-        self.real_B = self.netG_A.decode(content_A, style_rand, condiA)
+        self.real_A = self.netG_A.decode(content_A, style_rand, condiA)
+        self.real_B = self.real_C
 
     def forward(self):
         self.rsa = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)

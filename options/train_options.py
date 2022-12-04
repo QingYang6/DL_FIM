@@ -21,7 +21,7 @@ class TrainOptions(BaseOptions):
         parser.add_argument('--predict_freq', type=int, default=20000, help='frequency to predict images in val and save')
         parser.add_argument('--no_html', action='store_true', help='do not save intermediate training results to [opt.checkpoints_dir]/[opt.name]/web/')
         # network saving and loading parameters
-        parser.add_argument('--save_latest_freq', type=int, default=500000000000, help='frequency of saving the latest results')
+        parser.add_argument('--save_latest_freq', type=int, default=-1, help='frequency of saving the latest results, -1 means save by epoch')
         parser.add_argument('--save_epoch_freq', type=int, default=5, help='frequency of saving checkpoints at the end of epochs')
         parser.add_argument('--save_by_iter', type=str, default='False', help='whether to keep all inter save model, epoch save model will keep anyway')
         parser.add_argument('--continue_train', type=str, default='True', help='continue training: load the latest model')

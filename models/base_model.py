@@ -102,7 +102,8 @@ class BaseModel(ABC):
                     or self.opt.model == 'MUNITUC' or self.opt.model == 'MUNITSDGLCC'\
                     or self.opt.model == 'MUNITUCCLE' or self.opt.model == 'MUNITSDGCRL'\
                     or self.opt.model == 'DSBicycle' or self.opt.model == 'MUNIT3XIA' \
-                    or self.opt.model == 'MUNITTSG' or self.opt.model== 'MUNITFTSG':
+                    or self.opt.model == 'MUNITTSG' or self.opt.model== 'MUNITFTSG' \
+                    or self.opt.model ==  'FTSGINC' or self.opt.model == 'DS3XINC':
                 self.sample_selfdistribution()
             else:
                 self.forward()
@@ -148,7 +149,8 @@ class BaseModel(ABC):
                     or self.opt.model == 'MUNITUC' or self.opt.model == 'MUNITSDGLCC'\
                     or self.opt.model == 'MUNITUCCLE' or self.opt.model == 'MUNITSDGCRL'\
                     or self.opt.model == 'DSBicycle' or self.opt.model == 'MUNIT3XIA' \
-                    or self.opt.model == 'MUNITTSG' or self.opt.model== 'MUNITFTSG':
+                    or self.opt.model == 'MUNITTSG' or self.opt.model== 'MUNITFTSG' \
+                    or self.opt.model ==  'FTSGINC' or self.opt.model == 'DS3XINC':
                 self.sample()
             else:
                 self.forward()

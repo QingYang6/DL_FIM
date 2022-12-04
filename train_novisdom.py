@@ -26,6 +26,8 @@ from cleanfid import fid
 from data import create_dataset
 from models import create_model
 from torch.utils.tensorboard import SummaryWriter
+import torch
+print(torch.__version__)
 
 def PTtofolder(opt,epoch,total_iters,model,visualizer,Val_dataset):
     print('getting the FID score at the end of epoch %d, iters %d' % (epoch, total_iters))
@@ -91,7 +93,12 @@ if __name__ == '__main__':
             #   print('saving the latest model (epoch %d, total_iters %d)' % (epoch, total_iters))
             #    save_suffix = '%d' % total_iters if opt.save_by_iter else 'latest_%d' % total_iters
             #    model.save_networks(save_suffix)
-            
+            if opt.save_latest_freq >0:
+                if step_iter % (opt.save_latest_freq//opt.batch_size) == 0:             # cache our model every <save_epoch_freq> epochs
+                    PTtofolder(opt,epoch,total_iters,model,visualizer,Val_dataset)
+                    print('saving the model at stepiters %d, total iters %d' % (step_iter, total_iters))
+                    model.save_networks(total_iters)
+
             if step_iter % (opt.predict_freq//opt.batch_size) == 0:
                 imgtitle = opt.name+'_val_%d' % total_iters
                 predictout = os.path.join(opt.results_dir,'trainval_%d.png' % total_iters)
@@ -104,10 +111,11 @@ if __name__ == '__main__':
                 save_images_pix2pix(visuals, img_path, predictout,opt.valid_nrows,imgtitle)
 
             iter_data_time = time.time()
-        if epoch % opt.save_epoch_freq == 0:              # cache our model every <save_epoch_freq> epochs
-            PTtofolder(opt,epoch,total_iters,model,visualizer,Val_dataset)
-            print('saving the model at the end of epoch %d, iters %d' % (epoch, total_iters))
-            model.save_networks(total_iters)
+        if opt.save_latest_freq <0:
+            if epoch % opt.save_epoch_freq == 0:              # cache our model every <save_epoch_freq> epochs
+                PTtofolder(opt,epoch,total_iters,model,visualizer,Val_dataset)
+                print('saving the model at the end of epoch %d, iters %d' % (epoch, total_iters))
+                model.save_networks(total_iters)
 
         print('End of epoch %d / %d \t Time Taken: %d sec' % (epoch, opt.niter + opt.niter_decay, time.time() - epoch_start_time))
         model.update_learning_rate()                     # update learning rates at the end of every epoch.
