@@ -142,7 +142,7 @@ def evalforSelfDistriDistance(opt,epoch,total_iters,model,visualizer,Val_dataset
 def evalforSelfDistriDistance_floodanddry(opt,epoch,total_iters,model,visualizer,Val_dataset):
     print('getting the Distance score at the end of epoch %d, iters %d' % (epoch, total_iters))
     model.eval()
-    Distance_folder = os.path.join(opt.results_dir,'SelfDistri_Distance_andVH_V6U40')
+    Distance_folder = os.path.join(opt.results_dir,'SelfDistri_Distance_U60_andVH_withCVV2')
     os.makedirs(Distance_folder, exist_ok=True)
     FID_log = os.path.join(Distance_folder,'FID_two_randS_distribution.txt')
     L_fake,L_ori = [],[]
@@ -170,7 +170,7 @@ def evalforSelfDistriDistance_floodanddry(opt,epoch,total_iters,model,visualizer
             model.test_selfdistri()
             visuals = model.get_current_visuals()
             stakckofimgs = getvisuals(visuals)
-            for realA, fakeA, realB,fakeB, realC, fakeC in zip(*stakckofimgs):
+            for realA, fakeA, realB, fakeB, realC, fakeC in zip(*stakckofimgs):
                 fakeA1 = fakeA[0,:,:]* 0.5 + 0.5
                 fakeB1 = fakeB[0,:,:]* 0.5 + 0.5
                 fakeC1 = fakeC[0,:,:]* 0.5 + 0.5
@@ -194,13 +194,20 @@ def evalforSelfDistriDistance_floodanddry(opt,epoch,total_iters,model,visualizer
                     real_A = realA1.cpu().numpy()
                     real_B = realB1.cpu().numpy()
                     real_C = realC1.cpu().numpy()
-        score_DF,score_DD = fid.compute_fid(ONEdir, TWOdir, mode="clean"),fid.compute_fid(ONEdir, THREEdir, mode="clean")
-        message = 'Clean-fid DF: %.4f DD: %.4f' %  (score_DF,score_DD)
-        print(message)
-        with open(FID_log, "a") as log_FID:
-            log_FID.write('%s\n' % message)  # save the message
+        #score_DF,score_DD = fid.compute_fid(ONEdir, TWOdir, mode="clean"),fid.compute_fid(ONEdir, THREEdir, mode="clean")
+        #message = 'Clean-fid DF: %.4f DD: %.4f' %  (score_DF,score_DD)
+        #print(message)
+        #with open(FID_log, "a") as log_FID:
+        #    log_FID.write('%s\n' % message)  # save the message
         Pixel_WD_arr_DF = Dis_pixel(stacked_B,stacked_A,'WD')
         Pixel_WD_arr_DD = Dis_pixel(stacked_B,stacked_C,'WD')
+        Pixel_WD_arr_DD2 = Dis_pixel(stacked_A,stacked_C,'WD')
+        Pixel_CV_A = CV(stacked_A,0)
+        Pixel_CV_B = CV(stacked_B,0)
+        Pixel_CV_C = CV(stacked_C,0)
+        L1MAE_DF = L1MAE(real_B,real_A)
+        L1MAE_DD = L1MAE(real_B,real_C)
+        L1MAE_DD2 = L1MAE(real_A,real_C)
         #delta_DF = Dis_pixel(stacked_A,stacked_B,'MD')
         #delta_DD = Dis_pixel(stacked_A,stacked_C,'MD')
         #np.save(Pixel_WD_arr_DF, All_input_bands)
@@ -214,28 +221,95 @@ def evalforSelfDistriDistance_floodanddry(opt,epoch,total_iters,model,visualizer
         #    os.path.join(Distance_folder,'flood_dry_sample_'+str(ival)+'_'+'pixeldelta'+'.png'))
         #draw_pixel_distance(delta_DD,'dry_dry_pixeldelta_'+str(ival)+'_'+os.path.splitext(os.path.split(img_path[0])[1])[0],\
         #   os.path.join(Distance_folder,'dry_dry_sample_'+str(ival)+'_'+'pixeldelta'+'.png'))
-        draw_pixel_distance_ALL([Pixel_WD_arr_DF,Pixel_WD_arr_DD,real_B,real_C,real_A],['Potential flood WD','Potential flood WD2','Potential flood VH','Dry2 VH','Dry1 VH'],
+        draw_pixel_distance_ALL([Pixel_WD_arr_DF,Pixel_WD_arr_DD,Pixel_WD_arr_DD2,real_B,real_A,real_C,Pixel_CV_B,Pixel_CV_A,Pixel_CV_C,L1MAE_DF,L1MAE_DD,L1MAE_DD2],\
+            ['flood WD1','flood WD2','Dry WD','flood VH','Dry1 VH','Dry2 VH','CV recflood','CV recDRry1','CV recDry2','MAE_DF','MAE_DF2','MAE_DD'],
         str(ival)+'_'+os.path.splitext(os.path.split(img_path[0])[1])[0],TPNG_name)
         shutil.rmtree(tival_dir)
+        
+def evalforSelflogchange_floodanddry(opt,epoch,total_iters,model,visualizer,Val_dataset):
+    print('getting the Distance score at the end of epoch %d, iters %d' % (epoch, total_iters))
+    model.eval()
+    Distance_folder = os.path.join(opt.results_dir,'SelfLog_Change_andVH_comwithreal_U60')
+    os.makedirs(Distance_folder, exist_ok=True)
+    FID_log = os.path.join(Distance_folder,'FID_two_randS_distribution.txt')
+    L_fake,L_ori = [],[]
+    showima = False
+    num_irdx = int(1e3)
+    for ival, dataval in enumerate(Val_dataset):
+        TPNG_name = os.path.join(Distance_folder,'sample_'+str(ival)+'_'+'pixelLogChangeVH'+'.png')
+        if os.path.exists(TPNG_name):
+            continue
+        visualizer.reset()
+        model.set_input_test(dataval)
+        img_path = model.get_image_paths()
+        tival_dir = os.path.join(Distance_folder,'sample_'+str(ival)+'_'+os.path.splitext(os.path.split(img_path[0])[1])[0])
+        os.makedirs(tival_dir, exist_ok=True)
+        stacked_A = None
+        stacked_B = None
+        ONEdir=os.path.join(tival_dir,'Rand_ONE')
+        TWOdir=os.path.join(tival_dir,'Rand_TWO')
+        THREEdir=os.path.join(tival_dir,'Rand_THREE')
+        os.makedirs(ONEdir, exist_ok=True)
+        os.makedirs(TWOdir, exist_ok=True)
+        os.makedirs(THREEdir, exist_ok=True)
+        real_B = None
+        #for irdx in range(num_irdx):
+        model.test_selfdistri()
+        visuals = model.get_current_visuals()
+        stakckofimgs = getvisuals(visuals)
+        for real_A, fake_BA, fake_CA, real_B, fake_AB, fake_CB, real_C, fake_AC, fake_BC in zip(*stakckofimgs):
+            real_A = revalue_tocpu(real_A)
+            fake_BA = revalue_tocpu(fake_BA)
+            fake_CA = revalue_tocpu(fake_CA)
+            real_B = revalue_tocpu(real_B)
+            fake_AB = revalue_tocpu(fake_AB)
+            fake_CB = revalue_tocpu(fake_CB)
+            real_C = revalue_tocpu(real_C)
+            fake_AC = revalue_tocpu(fake_AC)
+            fake_BC = revalue_tocpu(fake_BC)
+        #score_DF,score_DD = fid.compute_fid(ONEdir, TWOdir, mode="clean"),fid.compute_fid(ONEdir, THREEdir, mode="clean")
+        #message = 'Clean-fid DF: %.4f DD: %.4f' %  (score_DF,score_DD)
+        #print(message)
+        #with open(FID_log, "a") as log_FID:
+        #    log_FID.write('%s\n' % message)  # save the message
+        c_l_BA = change_log(fake_BA,real_A)
+        c_l_CA = change_log(fake_CA,real_A)
+        c_l_AB = change_log(fake_AB,real_B)
+        c_l_CB = change_log(fake_CB,real_B)
+        c_l_AC = change_log(fake_AC,real_C)
+        c_l_BC = change_log(fake_BC,real_C)
+        c_l_real_AB = change_log(real_A,real_B)
+        c_l_real_CB = change_log(real_C,real_B)
+        c_l_real_CA = change_log(real_C,real_A)
+        #delta_DF = Dis_pixel(stacked_A,stacked_B,'MD')
+        #delta_DD = Dis_pixel(stacked_A,stacked_C,'MD')
+        #draw_pixel_distance_ALL([c_l_BA,c_l_CA,c_l_CB,real_A,real_B,real_C,c_l_AB,c_l_CB,c_l_AC,c_l_BC,c_l_BA,c_l_CA],\
+        #    ['c_l_BA','c_l_CA','c_l_CB','real_A VH','real_B VH','real_C VH','c_l_AB','c_l_CB','c_l_AC','c_l_BC','c_l_BA','c_l_CA'],
+        #str(ival)+'_'+os.path.splitext(os.path.split(img_path[0])[1])[0],TPNG_name)
+        draw_pixel_distance_ALL([c_l_AB,c_l_CB,c_l_CA,c_l_real_AB,c_l_real_CB,c_l_real_CA,real_B,real_A,real_C,fake_AB,fake_CB,fake_CA],\
+            ['c_l_AB','c_l_CB','c_l_CA','c_l_real_AB','c_l_real_CB','c_l_real_CA','real_B','real_A','real_C','fake_AB','fake_CB','fake_CA'],
+        str(ival)+'_'+os.path.splitext(os.path.split(img_path[0])[1])[0],TPNG_name)
+        shutil.rmtree(tival_dir)
+        #real_B,real_A,real_C
 
 def draw_pixel_distance_ALL(arrs,subtitle,title,savepath):
-    list_minmax_dis = [func(l) for l in [arrs[0],arrs[1]] for func in (np.min, np.max)]
-    list_minmax_VH = [func(l) for l in [arrs[2],arrs[3],arrs[4]] for func in (np.min, np.max)]
+    list_minmax_dis = [func(l) for l in [arrs[0],arrs[1],arrs[2],arrs[3],arrs[4],arrs[5]] for func in (np.min, np.max)]
+    list_minmax_backscattering = [func(l) for l in [arrs[6],arrs[7],arrs[8],arrs[9],arrs[10],arrs[11]] for func in (np.min, np.max)]
     n_plots = len(arrs)
-    n_cols = 2
+    n_cols = 3
     nrows = int(np.ceil(n_plots / n_cols))
     plt.figure(figsize =(10,10))
     plt.title(title)
     gs1 = gridspec.GridSpec(nrows,n_cols)
-    gs1.update(wspace=0.15, hspace=0.02)
+    gs1.update(wspace=0.2, hspace=0.15)
     for i in range(n_plots):
         ax = plt.subplot(gs1[i])
         img = arrs[i]
         ax = plt.gca()
-        if i <=1:
+        if i <=5:
             im = ax.imshow(img,interpolation='nearest', cmap='jet',vmin=min(list_minmax_dis), vmax=max(list_minmax_dis))
-        else:
-            im = ax.imshow(img,interpolation='nearest', cmap=plt.cm.Greys_r,vmin=min(list_minmax_VH), vmax=max(list_minmax_VH))
+        elif i <=11:
+            im = ax.imshow(img,interpolation='nearest', cmap=plt.cm.Greys_r,vmin=min(list_minmax_backscattering), vmax=max(list_minmax_backscattering))
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.03)
         plt.colorbar(im, cax=cax)
@@ -243,6 +317,46 @@ def draw_pixel_distance_ALL(arrs,subtitle,title,savepath):
         ax.title.set_text(subtitle[i])
     plt.savefig(savepath,dpi=300,format='png',bbox_inches='tight')#
     plt.close('all')
+    
+def draw_pixel_distance_ALL_ori(arrs,subtitle,title,savepath):
+    list_minmax_dis = [func(l) for l in [arrs[0],arrs[1],arrs[2]] for func in (np.min, np.max)]
+    list_minmax_VH = [func(l) for l in [arrs[3],arrs[4],arrs[5]] for func in (np.min, np.max)]
+    list_minmax_CV = [func(l) for l in [arrs[6],arrs[7],arrs[8]] for func in (np.min, np.max)]
+    list_minmax_L1MAE = [func(l) for l in [arrs[9],arrs[10],arrs[11]] for func in (np.min, np.max)]
+    n_plots = len(arrs)
+    n_cols = 3
+    nrows = int(np.ceil(n_plots / n_cols))
+    plt.figure(figsize =(10,10))
+    plt.title(title)
+    gs1 = gridspec.GridSpec(nrows,n_cols)
+    gs1.update(wspace=0.2, hspace=0.15)
+    for i in range(n_plots):
+        ax = plt.subplot(gs1[i])
+        img = arrs[i]
+        ax = plt.gca()
+        if i <=2:
+            im = ax.imshow(img,interpolation='nearest', cmap='jet',vmin=min(list_minmax_dis), vmax=max(list_minmax_dis))
+        elif i <=5:
+            im = ax.imshow(img,interpolation='nearest', cmap=plt.cm.Greys_r,vmin=min(list_minmax_VH), vmax=max(list_minmax_VH))
+        elif i <=8:
+            im = ax.imshow(img,interpolation='nearest', cmap='jet',vmin=min(list_minmax_CV), vmax=max(list_minmax_CV))
+        else:
+            im = ax.imshow(img,interpolation='nearest', cmap='jet',vmin=min(list_minmax_L1MAE), vmax=max(list_minmax_L1MAE))
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.03)
+        plt.colorbar(im, cax=cax)
+        ax.set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
+        ax.title.set_text(subtitle[i])
+    plt.savefig(savepath,dpi=300,format='png',bbox_inches='tight')#
+    plt.close('all')
+    
+def change_log(img_A,img_B):
+    return np.log(img_A)-np.log(img_B)
+
+def revalue_tocpu(img):
+    img1 = img[0,:,:]* 0.5 + 0.5
+    img1 = img1.cpu().numpy()
+    return img1
 
 def draw_pixel_distance(Pixel_WD_arr,title,savepath):
     plt.figure(figsize =(10,10))
@@ -275,6 +389,15 @@ def JS(a,b):
 
 def MD(a,b):
     return np.mean(b)-np.mean(a)
+
+def CV(A,dim):
+    cv =  lambda x: np.std(x) / np.mean(x)
+    var = np.apply_along_axis(cv, axis=dim, arr=A)
+    return var
+
+def L1MAE(a,b):
+    delta = np.abs(a-b)/a
+    return delta
 
 def getvisuals(visuals):
     stakckofimgs = []
@@ -326,5 +449,5 @@ if __name__ == '__main__':
     step_iter = total_iters // opt.batch_size
     opt.epoch_count = total_iters // dataset_size if total_iters // dataset_size > 0 else opt.epoch_count
     #evalforDistance(opt,opt.epoch_count,total_iters,model,visualizer,Val_dataset)
-    #evalforSelfDistriDistance(opt,opt.epoch_count,total_iters,model,visualizer,Val_dataset)
-    evalforSelfDistriDistance_floodanddry(opt,opt.epoch_count,total_iters,model,visualizer,Val_dataset)
+    #evalforSelfDistriDistance(opt,opt.epoch_count,total_iters,model,visualizer,Val_dataset) #evalforSelfDistriDistance_floodanddry
+    evalforSelflogchange_floodanddry(opt,opt.epoch_count,total_iters,model,visualizer,Val_dataset) #evalforSelflogchange_floodanddry

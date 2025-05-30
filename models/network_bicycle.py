@@ -63,7 +63,7 @@ def get_scheduler(optimizer, opt):
     """Return a learning rate scheduler
     Parameters:
         optimizer          -- the optimizer of the network
-        opt (option class) -- stores all the experiment flags; needs to be a subclass of BaseOptions．　
+        opt (option class) -- stores all the experiment flags; needs to be a subclass of BaseOptions.
                               opt.lr_policy is the name of learning rate policy: linear | step | plateau | cosine
     For 'linear', we keep the same learning rate for the first <opt.niter> epochs
     and linearly decay the rate to zero over the next <opt.niter_decay> epochs.
@@ -169,7 +169,22 @@ def define_D(input_nc, ndf, netD, norm='batch', nl='lrelu', init_type='xavier', 
     return init_net(net, init_type, init_gain, gpu_ids)
 
 
-def define_E(input_nc, output_nc, ndf, netE,
+def define_Decoder(output_nc, input_nc, ndf, netD,
+             norm='batch', nl='relu',
+             init_type='xavier', init_gain=0.02, gpu_ids=[], vaeLike=False):
+    net = None
+    norm_layer = get_norm_layer(norm_type=norm)
+    nl_layer = get_non_linearity(layer_type=nl)
+    if netD == 'basic_256':
+        net = D_Basic(output_nc, input_nc, ndf, n_blocks=5, norm_layer=norm_layer, nl_layer=nl_layer)
+    elif netD == 'vae_256':
+        net = D_VAE(output_nc, input_nc, ndf, n_blocks=5, norm_layer=norm_layer, nl_layer=nl_layer)
+    else:
+        raise NotImplementedError('Decoder model name [%s] is not recognized' % netD)
+
+    return init_net(net, init_type, init_gain, gpu_ids)
+
+def define_E_ori(input_nc, output_nc, ndf, netE,
              norm='batch', nl='lrelu',
              init_type='xavier', init_gain=0.02, gpu_ids=[], vaeLike=False):
     net = None
@@ -193,6 +208,30 @@ def define_E(input_nc, output_nc, ndf, netE,
                         nl_layer=nl_layer, vaeLike=vaeLike)
     else:
         raise NotImplementedError('Encoder model name [%s] is not recognized' % net)
+
+    return init_net(net, init_type, init_gain, gpu_ids)
+
+def define_E(input_nc, output_nc, ndf, netE, norm='batch', nl='lrelu', init_type='xavier', init_gain=0.02, gpu_ids=[], vaeLike=False):
+    net = None
+    norm_layer = get_norm_layer(norm_type=norm)
+    nl_layer = get_non_linearity(layer_type=nl)
+
+    if netE == 'resnet_128':
+        net = E_ResNet(input_nc, output_nc, ndf, n_blocks=4, norm_layer=norm_layer, nl_layer=nl_layer, vaeLike=vaeLike)
+    elif netE == 'resnet_256':
+        net = E_ResNet(input_nc, output_nc, ndf, n_blocks=5, norm_layer=norm_layer, nl_layer=nl_layer, vaeLike=vaeLike)
+    elif netE == 'resnet_1024':
+        net = E_ResNet(input_nc, output_nc, ndf, n_blocks=7, norm_layer=norm_layer, nl_layer=nl_layer, vaeLike=vaeLike)
+    elif netE == 'conv_128':
+        net = E_ResNet(input_nc, output_nc, ndf, n_layers=4, norm_layer=norm_layer, nl_layer=nl_layer, vaeLike=vaeLike)
+    elif netE == 'conv_256':
+        net = E_ResNet(input_nc, output_nc, ndf, n_layers=5, norm_layer=norm_layer, nl_layer=nl_layer, vaeLike=vaeLike)
+    elif netE == 'basic_128' or netE == 'basic_256' or netE == 'basic_1024':
+        # Adjust number of blocks based on netE
+        n_blocks = 4 if netE == 'basic_128' else (5 if netE == 'basic_256' else 7)
+        net = E_Basic(input_nc, output_nc, ndf, n_blocks=n_blocks, norm_layer=norm_layer, nl_layer=nl_layer)
+    else:
+        raise NotImplementedError('Encoder model name [%s] is not recognized' % netE)
 
     return init_net(net, init_type, init_gain, gpu_ids)
 
@@ -644,6 +683,115 @@ class BasicBlock(nn.Module):
         out = self.conv(x) + self.shortcut(x)
         return out
 
+class UpsamplingBlock(nn.Module):
+    def __init__(self, inplanes, outplanes, norm_layer=None, nl_layer=None, upscale_factor=2):
+        super(UpsamplingBlock, self).__init__()
+        layers = []
+        if norm_layer is not None:
+            layers += [norm_layer(inplanes)]
+        layers += [nl_layer()]
+        layers += [nn.ConvTranspose2d(inplanes, inplanes, kernel_size=3, stride=1, padding=1, bias=False)]
+        if norm_layer is not None:
+            layers += [norm_layer(inplanes)]
+        layers += [nl_layer()]
+        layers += [nn.Upsample(scale_factor=upscale_factor, mode='nearest')]
+        layers += [nn.ConvTranspose2d(inplanes, outplanes, kernel_size=3, stride=1, padding=1, bias=False)]
+        self.conv = nn.Sequential(*layers)
+        self.shortcut = nn.Sequential(
+            nn.Upsample(scale_factor=upscale_factor, mode='nearest'),
+            nn.ConvTranspose2d(inplanes, outplanes, kernel_size=3, stride=1, padding=1, bias=False)
+        )
+
+    def forward(self, x):
+        out = self.conv(x) + self.shortcut(x)
+        return out
+
+class E_Basic(nn.Module):
+    def __init__(self, input_nc=3, output_nc=128, ndf=64, n_blocks=4, norm_layer=None, nl_layer=None):
+        super(E_Basic, self).__init__()
+        self.n_blocks = n_blocks
+        max_ndf = 4
+        conv_layers = [nn.Conv2d(input_nc, ndf, kernel_size=4, stride=2, padding=1)]
+
+        for n in range(1, n_blocks):
+            input_ndf = ndf * min(max_ndf, n)
+            output_ndf = ndf * min(max_ndf, n + 1)
+            conv_layers += [BasicBlock(input_ndf, output_ndf, norm_layer, nl_layer)]
+
+        conv_layers += [nl_layer(), nn.AvgPool2d(8)]
+
+        # Calculate the size of the feature maps after all conv layers
+        final_feature_map_size = 256 // (2 ** n_blocks) // 8  # Adjust this based on your layer specifics
+
+        self.fc = nn.Sequential(*[nn.Linear(output_ndf * final_feature_map_size ** 2, output_nc)])
+
+        self.conv = nn.Sequential(*conv_layers)
+
+    def forward(self, x):
+        x_conv = self.conv(x)
+        conv_flat = x_conv.view(x.size(0), -1)
+        output = self.fc(conv_flat)
+        return output
+
+class D_Basic(nn.Module):
+    def __init__(self, output_nc=1, input_nc=128, ndf=64, n_blocks=5, norm_layer=None, nl_layer=None):
+        super(D_Basic, self).__init__()
+
+        # Fully connected layer to reshape input to [16, 64, 8, 8]
+        self.fc = nn.Linear(input_nc, 64 * 8 * 8)
+
+        # Initialize deconvolution layers
+        deconv_layers = []
+        input_ndf = 64  # This should match the number of channels after reshaping
+
+        # Add deconvolution blocks
+        for n in range(n_blocks - 1, 0, -1):
+            output_ndf = ndf * 2 ** (n - 1)
+
+            # Apply convolution
+            deconv_layers.append(nn.ConvTranspose2d(input_ndf, output_ndf, kernel_size=4, stride=2, padding=1))
+
+            # Apply normalization if it's provided
+            if norm_layer is not None:
+                deconv_layers.append(norm_layer(output_ndf))
+
+            # Apply non-linearity
+            if nl_layer is not None:
+                deconv_layers.append(nl_layer())
+            
+            input_ndf = output_ndf
+
+        # Final deconvolution to get to 1 channel
+        deconv_layers.append(nn.ConvTranspose2d(ndf, output_nc, kernel_size=4, stride=2, padding=1))
+
+        self.deconv = nn.Sequential(*deconv_layers)
+
+    def forward(self, x):
+        # Reshape and upscale
+        x_fc = self.fc(x)
+        x_fc = x_fc.view(x.size(0), 64, 8, 8)  # Reshape to [16, 64, 8, 8]
+        output = self.deconv(x_fc)
+        return output
+
+class D_VAE(nn.Module):
+    def __init__(self, output_nc=3, latent_size=1, ndf=64, n_blocks=5,
+                 norm_layer=None, nl_layer=None):
+        super(D_VAE, self).__init__()
+
+        self.fc = nn.Linear(latent_size, ndf)
+        layers = [nn.ConvTranspose2d(ndf, ndf, kernel_size=4, stride=2, padding=1, bias=True)]
+        for n in range(1, n_blocks):
+            input_ndf = ndf * min(4, n)
+            output_ndf = ndf * min(4, n + 1)
+            layers += [UpsamplingBlock(output_ndf, input_ndf, norm_layer, nl_layer)]
+
+        layers += [nl_layer(), nn.ConvTranspose2d(ndf, output_nc, kernel_size=4, stride=2, padding=1, bias=True), nn.Tanh()]
+        self.conv = nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.fc(x)
+        x = x.view(x.size(0), ndf, 1, 1)  # Reshape for conv layers
+        return self.conv(x)
 
 class E_ResNet(nn.Module):
     def __init__(self, input_nc=3, output_nc=1, ndf=64, n_blocks=4,
@@ -676,7 +824,6 @@ class E_ResNet(nn.Module):
         else:
             return output
 
-
 # Defines the Unet generator.
 # |num_downs|: number of downsamplings in UNet. For example,
 # if |num_downs| == 7, image of size 128x128 will become of size 1x1
@@ -706,7 +853,6 @@ class G_Unet_add_all(nn.Module):
 
     def forward(self, x, z):
         return self.model(x, z)
-
 
 class UnetBlock_with_z(nn.Module):
     def __init__(self, input_nc, outer_nc, inner_nc, nz=0,

@@ -14,7 +14,7 @@ class MUNIT2S1CModel(BaseModel):
     """
     @staticmethod
     def modify_commandline_options(parser, is_train=True):
-        parser.set_defaults(no_dropout=True,norm='AdaIn', netG='AdaINGen2C1S',netD='MsImageDis')  # default MUNIT did not use dropout
+        parser.set_defaults(no_dropout=True,norm='AdaIn', netG='AdaINGen2C1S',netD='MsImageDis', CtoE = True, DEM = False)  # default MUNIT did not use dropout
         if is_train:
             parser.add_argument('--style_dim', type=float, default=8)
             parser.add_argument('--n_downsample', type=float, default=2)
@@ -50,13 +50,23 @@ class MUNIT2S1CModel(BaseModel):
             self.model_names = ['G_A', 'D_A']
         else:  # during test time, only load Gs
             self.model_names = ['G_A']
-
+        
+        if not opt.CtoE:
+            input2G = 2
+            input2D = opt.input_nc
+        else:
+            if self.opt.DEM:
+                input2G = opt.input_nc
+                input2D = opt.input_nc
+            else:
+                input2G = opt.input_nc-1
+                input2D = opt.input_nc-1
         # define networks (both Generators and discriminators)
-        self.netG_A = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.netG, 'none',
+        self.netG_A = networks.define_G(input2G, opt.output_nc, opt.ngf, opt.netG, 'none',
                                         not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids,\
                                         opt.style_dim,opt.n_downsample, opt.n_res, opt.mlp_dim, activ='relu', pad_type='reflect')
 
-        self.netD_A = networks.define_D(opt.input_nc, opt.ndf, opt.netD,\
+        self.netD_A = networks.define_D(input2D, opt.ndf, opt.netD,\
                                         opt.n_layers_D, 'none', opt.init_type, opt.init_gain, self.gpu_ids,\
                                         mask_size=128, s1=32, s2=16, activ='lrelu', num_scales=3, pad_type='reflect')
 
@@ -71,7 +81,7 @@ class MUNIT2S1CModel(BaseModel):
             self.optimizers.append(self.optimizer_G)
             self.optimizers.append(self.optimizer_D)
 
-    def set_input(self, input):
+    def set_input_ori(self, input):
         """Unpack input data from the dataloader and perform necessary pre-processing steps.
 
         Parameters:
@@ -86,8 +96,24 @@ class MUNIT2S1CModel(BaseModel):
         self.real_C = raw_BC[:,3:,:,:]
         #self.real_C = input['C' if AtoB else 'A'].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
+        
+    def set_input(self, input):
+        AtoB = self.opt.direction == 'AtoB'
+        raw_AC = input['A' if AtoB else 'B']
+        raw_BC = input['B' if AtoB else 'A']
+        self.real_A = raw_AC[:,[0,1,2],:,:].to(self.device)
+        self.real_B = raw_AC[:,[3,4,5],:,:].to(self.device)
+        #self.real_LCC = raw_BC[:,[6,7],:,:].to(self.device)
+        self.real_A2 = raw_BC[:,[0,1,2],:,:].to(self.device)
+        if self.opt.DEM:
+            self.real_C = raw_AC[:,[6,7,8],:,:].to(self.device)
+            self.real_C_a2 = raw_BC[:,[6,7,8],:,:].to(self.device)
+        else:
+            self.real_C = raw_AC[:,[6,7],:,:].to(self.device)
+            self.real_C_a2 = raw_BC[:,[6,7],:,:].to(self.device)
+        self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
-    def sample(self):
+    def sample_ori(self):
         '''Just sample cross domain'''
         #style_rand = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)
         self.realA_C = torch.cat((self.real_A, self.real_C), 1)
@@ -95,6 +121,26 @@ class MUNIT2S1CModel(BaseModel):
         _, cc, style = self.netG_A.encode(self.realB_C)
         uc,_, _ = self.netG_A.encode(self.realA_C)
         self.fake_B = self.netG_A.decode(uc, cc, style)
+    
+    def sample(self):
+        '''Just sample cross domain'''
+        style_rand = torch.randn(self.real_A.size(0), self.opt.style_dim,1,1).to(self.device)
+        if self.opt.CtoE:
+            self.realA_C = torch.cat((self.real_A, self.real_C), 1)
+            self.realB_C = torch.cat((self.real_B, self.real_C), 1)
+            self.realC_C = torch.cat((self.real_A2, self.real_C_a2), 1)
+        else:
+            self.realA_C = self.real_A
+            self.realB_C = self.real_B
+            self.realC_C = self.real_C_c
+        contentB, styleB = self.netG_A.encode(self.realB_C)
+        contentA, styleA = self.netG_A.encode(self.realA_C)
+        contentC, styleC = self.netG_A.encode(self.realC_C)
+        self.fake_B = self.netG_A.decode(contentB, styleA)
+        self.fake_A = self.netG_A.decode(contentA, styleB)
+        self.fake_C = self.netG_A.decode(contentC, style_rand)
+        self.real_C = self.real_A2
+        self.fake_C2 = self.netG_A.decode(contentC, styleA)
 
     def forward(self):
         self.s_a = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)

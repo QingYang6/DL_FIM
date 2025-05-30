@@ -49,7 +49,8 @@ class MUNITSDGCRLModel(BaseModel):
         # specify the images you want to save/display. The training/test scripts will call <BaseModel.get_current_visuals>
         #visual_names_A = ['real_A', 'fake_B']
         #visual_names_B = ['real_B', 'fake_A']
-        self.visual_names = ['real_A', 'fake_B', 'real_B']  # combine visualizations for A and B
+        #self.visual_names = ['real_A', 'fake_B', 'real_B']  # combine visualizations for A and B
+        self.visual_names = ['real_B','fake_B','real_A', 'fake_A','real_C', 'fake_C','fake_C2']
         # specify the models you want to save to the disk. The training/test scripts will call <BaseModel.save_networks> and <BaseModel.load_networks>.
         if self.isTrain:
             if not opt.use_same_G:
@@ -154,16 +155,23 @@ class MUNITSDGCRLModel(BaseModel):
 
     def sample(self):
         '''Just sample cross domain'''
-        #style_rand = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)
+        style_rand = torch.randn(self.real_A.size(0), self.opt.style_dim,1,1).to(self.device)
         if self.opt.CtoE:
             self.realA_C = torch.cat((self.real_A, self.real_C_a), 1)
             self.realB_C = torch.cat((self.real_B, self.real_C_b), 1)
+            self.realC_C = torch.cat((self.real_A2, self.real_C_a2), 1)
         else:
             self.realA_C = self.real_A
             self.realB_C = self.real_B
-        _, style = self.netG_A.encode(self.realB_C)
-        content, _ = self.netG_A.encode(self.realA_C)            
-        self.fake_B = self.netG_A.decode(content, style)
+            self.realC_C = self.real_C_c
+        contentB, styleB = self.netG_A.encode(self.realB_C)
+        contentA, styleA = self.netG_A.encode(self.realA_C)
+        contentC, styleC = self.netG_A.encode(self.realC_C)
+        self.fake_B = self.netG_A.decode(contentB, styleA)
+        self.fake_A = self.netG_A.decode(contentA, styleB)
+        self.fake_C = self.netG_A.decode(contentC, style_rand)
+        self.real_C = self.real_A2
+        self.fake_C2 = self.netG_A.decode(contentC, styleA)
 
     def forward(self):
         self.s_a = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)

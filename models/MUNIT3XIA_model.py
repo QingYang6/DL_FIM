@@ -15,7 +15,7 @@ class MUNIT3XIAModel(BaseModel):
     @staticmethod
     def modify_commandline_options(parser, is_train=True):
         parser.set_defaults(no_dropout=True,norm='AdaIn', netG='AdaINGen_IA',netD='MsImageDis',\
-            use_same_D=True, use_same_G=True, CtoE = True, DEM = True, NE_MARGIN=True)  # default MUNIT did not use dropout
+            use_same_D=True, use_same_G=True, CtoE = True, DEM = False, NE_MARGIN=True)  # default MUNIT did not use dropout
         if is_train:
             parser.add_argument('--style_dim', type=float, default=8)
             parser.add_argument('--n_downsample', type=float, default=2)
@@ -30,7 +30,7 @@ class MUNIT3XIAModel(BaseModel):
             parser.add_argument('--recon_x_cyc_w', type=float, default=10)
             parser.add_argument('--vgg_w', type=float, default=0)
             parser.add_argument('--lambda_LDS', type=float, default=1, help='weight for diversityGAN')
-            parser.add_argument('--NE_MARGIN_VALUE', type=float, default=-0.25, help='weight for diversityGAN')
+            parser.add_argument('--NE_MARGIN_VALUE', type=float, default=1, help='weight for diversityGAN')
 
         return parser
 
@@ -296,11 +296,11 @@ class MUNIT3XIAModel(BaseModel):
         batch_wise_imgs_l1 = batch_wise_imgs_l1 / (img1.size(1)*img1.size(2)*img1.size(3))
         batch_wise_z_l1 = self.criterionDS(s1.detach(), s2.detach()).sum(dim=1)
         batch_wise_z_l1 = batch_wise_z_l1 / s1.size(1)
-        loss_errNE = - (batch_wise_imgs_l1 / (batch_wise_z_l1 + _eps)).mean()
+        loss_errNE =  (batch_wise_imgs_l1 / (batch_wise_z_l1 + _eps)).mean()
         if self.opt.NE_MARGIN:
-            loss_errNE = torch.clamp(loss_errNE, max=self.opt.NE_MARGIN_VALUE).mean()* self.opt.lambda_LDS
+            loss_errNE = -torch.clamp(loss_errNE, max=self.opt.NE_MARGIN_VALUE).mean()* self.opt.lambda_LDS
         else:
-            loss_errNE = loss_errNE.mean()* self.opt.lambda_LDS
+            loss_errNE = -loss_errNE.mean()* self.opt.lambda_LDS
         return loss_errNE
 
     def backward_D_basic(self, netD, real, fake,condi):

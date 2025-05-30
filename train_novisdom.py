@@ -21,7 +21,7 @@ See frequently asked questions at: https://github.com/junyanz/pytorch-CycleGAN-a
 import time, os, shutil
 from options.train_options import TrainOptions
 from util.visualizer_local import Visualizer_local
-from util.visualizer_local import save_images_pix2pix,save_images_fakeandreal
+from util.visualizer_local import save_images_pix2pix,save_images_fakeandreal,save_images_vr2
 from cleanfid import fid
 from data import create_dataset
 from models import create_model
@@ -108,7 +108,8 @@ if __name__ == '__main__':
                 model.test()           # run inference
                 visuals = model.get_current_visuals()# get image results  
                 img_path = model.get_image_paths()
-                save_images_pix2pix(visuals, img_path, predictout,opt.valid_nrows,imgtitle)
+                #save_images_pix2pix(visuals, img_path, predictout,opt.valid_nrows,imgtitle)
+                save_images_vr2(visuals, img_path, predictout,opt.valid_nrows,imgtitle)
 
             iter_data_time = time.time()
         if opt.save_latest_freq <0:

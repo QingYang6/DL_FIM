@@ -26,7 +26,7 @@ class DSBicycleModel(BaseModel):
             parser.add_argument('--lambda_GAN2', type=float, default=1.0, help='weight on D2 loss, D(G(A, random_z))')
             parser.add_argument('--lambda_z', type=float, default=0.5, help='weight for ||E(G(random_z)) - random_z||')
             parser.add_argument('--lambda_kl', type=float, default=0.01, help='weight for KL loss')
-            parser.add_argument('--NE_MARGIN_VALUE', type=float, default=-2, help='maximum diversity')
+            parser.add_argument('--NE_MARGIN_VALUE', type=float, default=2, help='maximum diversity')
         return parser
 
     def __init__(self, opt):
@@ -137,7 +137,10 @@ class DSBicycleModel(BaseModel):
         if z0 is None:
             z0 = self.get_z_random(self.real_A.size(0), self.opt.nz)
         self.fake_B = self.netG(self.real_A, z0)
-        self.forward()
+        z_random = self.get_z_random(self.real_A.size(0), self.opt.nz)
+        z_random2 = self.get_z_random(self.real_A.size(0), self.opt.nz)
+        self.fake_B_random = self.netG(self.real_A, z_random)
+        self.fake_B_random2 = self.netG(self.real_A, z_random2)
         #return self.real_A, self.fake_B, self.real_B
 
     def forward(self):
@@ -253,11 +256,11 @@ class DSBicycleModel(BaseModel):
             batch_wise_imgs_l1 = batch_wise_imgs_l1 / (self.fake_B_random.size(1)*self.fake_B_random.size(2)*self.fake_B_random.size(3))
             batch_wise_z_l1 = self.criterionDS(self.z_random.detach(), self.z_random2.detach()).sum(dim=1)
             batch_wise_z_l1 = batch_wise_z_l1 / self.z_random2.size(1)
-            self.loss_errNE = - (batch_wise_imgs_l1 / (batch_wise_z_l1 + _eps)).mean()
+            self.loss_errNE =  (batch_wise_imgs_l1 / (batch_wise_z_l1 + _eps)).mean()
             if self.opt.NE_MARGIN:
-                self.loss_errNE = torch.clamp(self.loss_errNE, max=self.opt.NE_MARGIN_VALUE).mean()* self.opt.lambda_LDS
+                self.loss_errNE = -torch.clamp(self.loss_errNE, max=self.opt.NE_MARGIN_VALUE).mean()* self.opt.lambda_LDS
             else:
-                self.loss_errNE = self.loss_errNE.mean()* self.opt.lambda_LDS
+                self.loss_errNE = -self.loss_errNE.mean()* self.opt.lambda_LDS
             Galongloss = Galongloss + self.loss_errNE
         Galongloss.backward()
 
@@ -273,6 +276,8 @@ class DSBicycleModel(BaseModel):
             self.set_requires_grad([self.netE], False)
             self.backward_G_alone()
             self.set_requires_grad([self.netE], True)
+        else:
+            self.loss_z_L1 = 0.0
 
         self.optimizer_E.step()
         self.optimizer_G.step()

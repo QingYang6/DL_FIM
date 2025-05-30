@@ -3,11 +3,13 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch.nn import init
 import functools
+from typing import Tuple, Optional, List
 from torch.optim import lr_scheduler
 from torch.nn import functional as func
 from models.ResNet import *
 from models.inception_pytorch import InceptionV3
 import torchvision
+import numpy as np
 
 
 ###############################################################################
@@ -83,6 +85,12 @@ def init_weights(net, init_type='normal', init_gain=0.02):
     def init_func(m):  # define the initialization function
         classname = m.__class__.__name__
         if hasattr(m, 'weight') and (classname.find('Conv') != -1 or classname.find('Linear') != -1):
+            try:
+                aint = len(m.weight.data)
+            except Exception as e:
+                print(e)
+                print('using EqualizedWeight for %s' % classname)
+                return
             if init_type == 'normal':
                 init.normal_(m.weight.data, 0.0, init_gain)
             elif init_type == 'xavier':
@@ -179,6 +187,10 @@ def define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, in
         net = AdaINGen_3X2E(input_nc, output_nc, ngf, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim)
     elif netG == 'AdaINGen_3E':
         net = AdaINGen_3E(input_nc, output_nc, ngf, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim)
+    elif netG == 'ModulateGen':
+        net = ModulateGen(input_nc, output_nc, ngf, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim)
+    elif netG == 'ModulateGen_IA':
+        net = ModulateGen_IA(input_nc, output_nc, ngf, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim)
     elif netG == 'VAEGen':
         net = VAEGen(input_nc, ngf, style_dim, n_downsample, n_res, activ, pad_type)
     elif netG == 'lat':
@@ -1440,17 +1452,18 @@ class AdaINGen(nn.Module):
                 num_adain_params += 2*m.num_features
         return num_adain_params
 
-class AdaINGen_IA(nn.Module):
+class AdaINGen_IA_nocondi(nn.Module):
     # AdaIN auto-encoder architecture
+    # Modified as conditional encoder
     def __init__(self, input_dim, output_dim, dim, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim):
-        super(AdaINGen_IA, self).__init__()
+        super(AdaINGen_IA_nocondi, self).__init__()
 
         # style encoder
         self.enc_style = StyleEncoder(4, input_dim, dim, style_dim, norm='none', activ=activ, pad_type=pad_type)
 
         # content encoder
         self.enc_content = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type)
-        self.enc_condi = ContentEncoder(n_downsample, n_res, 1, dim, 'in', activ, pad_type=pad_type)
+        #self.dec = CondiConcatDecoder(n_downsample, n_res, self.enc_content.output_dim, output_dim, res_norm='adain', activ=activ, pad_type=pad_type)
         self.dec = Decoder(n_downsample, n_res, self.enc_content.output_dim*2, output_dim, res_norm='adain', activ=activ, pad_type=pad_type)
 
         # MLP to generate AdaIN parameters
@@ -1477,8 +1490,70 @@ class AdaINGen_IA(nn.Module):
         # decode content and style codes to an image
         adain_params = self.mlp(style)
         self.assign_adain_params(adain_params, self.dec)
-        con_cat = torch.cat((content,condi), 1)
-        images = self.dec(con_cat)
+        #images = self.dec(content, condi)
+        images = self.dec(torch.cat((content, condi), 1))
+        return images
+
+    def assign_adain_params(self, adain_params, model):
+        # assign the adain_params to the AdaIN layers in model
+        for m in model.modules():
+            if m.__class__.__name__ == "AdaptiveInstanceNorm2d":
+                mean = adain_params[:, :m.num_features]
+                std = adain_params[:, m.num_features:2*m.num_features]
+                m.bias = mean.contiguous().view(-1)
+                m.weight = std.contiguous().view(-1)
+                if adain_params.size(1) > 2*m.num_features:
+                    adain_params = adain_params[:, 2*m.num_features:]
+
+    def get_num_adain_params(self, model):
+        # return the number of AdaIN parameters needed by the model
+        num_adain_params = 0
+        for m in model.modules():
+            if m.__class__.__name__ == "AdaptiveInstanceNorm2d":
+                num_adain_params += 2*m.num_features
+        return num_adain_params
+
+class AdaINGen_IA(nn.Module):
+    # AdaIN auto-encoder architecture
+    # Modified as conditional encoder
+    def __init__(self, input_dim, output_dim, dim, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim):
+        super(AdaINGen_IA, self).__init__()
+
+        # style encoder
+        self.enc_style = StyleEncoder(4, input_dim, dim, style_dim, norm='none', activ=activ, pad_type=pad_type)
+
+        # content encoder
+        self.enc_content = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type)
+        self.enc_condi = ContentEncoder(n_downsample, n_res, 3, dim, 'in', activ, pad_type=pad_type)
+        #self.dec = CondiConcatDecoder(n_downsample, n_res, self.enc_content.output_dim, output_dim, res_norm='adain', activ=activ, pad_type=pad_type)
+        self.dec = Decoder(n_downsample, n_res, self.enc_content.output_dim*2, output_dim, res_norm='adain', activ=activ, pad_type=pad_type)
+
+        # MLP to generate AdaIN parameters
+        self.mlp = MLP(style_dim, self.get_num_adain_params(self.dec), mlp_dim, 3, norm='none', activ=activ)
+
+    def forward(self, images):
+        # reconstruct an image
+        content, style_fake = self.encode(images)
+        images_recon = self.decode(content, style_fake)
+        return images_recon
+
+    def encode_condi(self, images):
+        # encode condition to latent
+        condi = self.enc_condi(images)
+        return condi
+
+    def encode(self, images):
+        # encode an image to its content and style codes
+        style_fake = self.enc_style(images)
+        content = self.enc_content(images)
+        return content, style_fake
+
+    def decode(self, content, style, condi):
+        # decode content and style codes to an image
+        adain_params = self.mlp(style)
+        self.assign_adain_params(adain_params, self.dec)
+        #images = self.dec(content, condi)
+        images = self.dec(torch.cat((content, condi), 1))
         return images
 
     def assign_adain_params(self, adain_params, model):
@@ -1506,16 +1581,18 @@ class AdaINGen_3X2E(nn.Module):
         super(AdaINGen_3X2E, self).__init__()
 
         # style encoder
-        self.enc_style = StyleEncoder(4, input_dim, dim, style_dim, norm='none', activ=activ, pad_type=pad_type)
+        self.enc_style = StyleEnC_Mapping(4, input_dim, dim, style_dim, norm='none', activ=activ, pad_type=pad_type)
 
         # content encoder
         self.enc_content = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type)
         self.enc_condi = ContentEncoder(n_downsample, n_res, 4, dim, 'in', activ, pad_type=pad_type)
         self.enc_condi_X = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type)
         self.dec = Decoder(n_downsample, n_res, self.enc_content.output_dim*2, output_dim, res_norm='adain', activ=activ, pad_type=pad_type)
+        #self.dec = MoDecoder(n_downsample, style_dim, self.enc_content.output_dim*2, output_dim, res_norm='modulate', activ=activ, pad_type=pad_type)
 
         # MLP to generate AdaIN parameters
         self.mlp = MLP(style_dim, self.get_num_adain_params(self.dec), mlp_dim, 3, norm='none', activ=activ)
+        #self.mlp = MappingNetwork(style_dim,8)
 
     def forward(self, images):
         # reconstruct an image
@@ -1536,13 +1613,20 @@ class AdaINGen_3X2E(nn.Module):
         return content, style_fake, condi
 
     def decode(self, content, style, condi):
-        # decode content and style codes to an image
+        #decode content and style codes to an image
         adain_params = self.mlp(style)
         self.assign_adain_params(adain_params, self.dec)
         con_cat = torch.cat((content,condi), 1)
         images = self.dec(con_cat)
         return images
-
+        #w = self.mlp(style)
+        #con_cat = torch.cat((content,condi), 1)
+        #images = self.dec(con_cat,w,None)
+        #if needw:
+        #    return images,w
+        #else:
+        #    return images
+        
     def assign_adain_params(self, adain_params, model):
         # assign the adain_params to the AdaIN layers in model
         for m in model.modules():
@@ -1662,6 +1746,24 @@ class VAEGen(nn.Module):
 # Encoder and Decoders (MUNIT)
 ##################################################################################
 
+class StyleEnC_Mapping(nn.Module):
+    def __init__(self, n_downsample, input_dim, dim, style_dim, norm, activ, pad_type):
+        super(StyleEnC_Mapping, self).__init__()
+        self.model = []
+        self.model += [Conv2dBlock(input_dim, dim, 7, 1, 3, norm=norm, activation=activ, pad_type=pad_type)]
+        for i in range(2):
+            self.model += [Conv2dBlock(dim, 2 * dim, 4, 2, 1, norm=norm, activation=activ, pad_type=pad_type)]
+            dim *= 2
+        for i in range(n_downsample - 2):
+            self.model += [Conv2dBlock(dim, dim, 4, 2, 1, norm=norm, activation=activ, pad_type=pad_type)]
+        self.model += [nn.AdaptiveAvgPool2d(1)] # global average pooling
+        self.model += [nn.Conv2d(dim, style_dim, 1, 1, 0)]
+        self.model = nn.Sequential(*self.model)
+        self.output_dim = dim
+
+    def forward(self, x):
+        return torch.squeeze(self.model(x))
+
 class StyleEncoder(nn.Module):
     def __init__(self, n_downsample, input_dim, dim, style_dim, norm, activ, pad_type):
         super(StyleEncoder, self).__init__()
@@ -1715,6 +1817,29 @@ class Decoder(nn.Module):
 
     def forward(self, x):
         return self.model(x)
+
+class CondiConcatDecoder(nn.Module):
+    def __init__(self, n_upsample, n_res, dim, output_dim, res_norm='adain', activ='relu', pad_type='zero'):
+        super(CondiConcatDecoder, self).__init__()
+
+        self.model = []
+        self.model_norm = []
+        # AdaIN residual blocks
+        self.model_norm += [ResBlocks(n_res, dim, res_norm, activ, pad_type=pad_type)]
+        self.model_norm = nn.Sequential(*self.model_norm)
+        dim *=2
+        # upsampling blocks
+        for i in range(n_upsample):
+            self.model += [nn.Upsample(scale_factor=2),
+                           Conv2dBlock(dim, dim // 2, 5, 1, 2, norm='ln', activation=activ, pad_type=pad_type)]
+            dim //= 2
+        # use reflection padding in the last conv layer
+        self.model += [Conv2dBlock(dim, output_dim, 7, 1, 3, norm='none', activation='tanh', pad_type=pad_type)]
+        self.model = nn.Sequential(*self.model)
+
+    def forward(self, x, condi):
+        x = self.model_norm(x)
+        return self.model(torch.cat((x,condi.detach()), 1))
 
 ##################################################################################
 # Sequential Models (MUNIT)
@@ -1869,6 +1994,370 @@ class LinearBlock(nn.Module):
         if self.activation:
             out = self.activation(out)
         return out
+
+####modulateGEN###
+class ModulateGen(nn.Module):
+    # AdaIN auto-encoder architecture
+    def __init__(self, input_dim, output_dim, dim, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim):
+        super(ModulateGen, self).__init__()
+
+        # style encoder
+        self.enc_style = StyleEnC_Mapping(4, input_dim, dim, style_dim, norm='none', activ=activ, pad_type=pad_type)
+
+        # content encoder
+        self.enc_content = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type)
+        self.dec = MoDecoder(n_downsample, style_dim, self.enc_content.output_dim, output_dim, res_norm='modulate', activ=activ, pad_type=pad_type)
+
+        # MLP to generate AdaIN parameters
+        #self.mlp = MLP(style_dim, self.get_num_adain_params(self.dec), mlp_dim, 3, norm='none', activ=activ)
+        self.mlp = MappingNetwork(style_dim,8)
+
+    def forward(self, images):
+        # reconstruct an image
+        content, style_fake = self.encode(images)
+        images_recon = self.decode(content, style_fake)
+        return images_recon
+
+    def encode(self, images):
+        # encode an image to its content and style codes
+        style_fake = self.enc_style(images)
+        content = self.enc_content(images)
+        return content, style_fake
+
+    def decode(self, content, style):
+        # decode content and style codes to an image
+        w = self.mlp(style)
+        images = self.dec(content,w,None)
+        return images
+
+class ModulateGen_IA(nn.Module):
+    # AdaIN auto-encoder architecture
+    # Modified as conditional encoder
+    def __init__(self, input_dim, output_dim, dim, style_dim, n_downsample, n_res, activ, pad_type, mlp_dim):
+        super(ModulateGen_IA, self).__init__()
+
+        # style encoder
+        self.enc_style = StyleEnC_Mapping(4, input_dim, dim, style_dim, norm='none', activ=activ, pad_type=pad_type)
+
+        # content encoder
+        self.enc_content = ContentEncoder(n_downsample, n_res, input_dim, dim, 'in', activ, pad_type=pad_type)
+        self.enc_condi = ContentEncoder(n_downsample, n_res, 3, dim, 'in', activ, pad_type=pad_type)
+        self.dec = MoDecoder(n_downsample, style_dim, self.enc_content.output_dim*2, output_dim, res_norm='modulate', activ=activ, pad_type=pad_type)
+        #self.dec = CondiConcatDecoder(n_downsample, n_res, self.enc_content.output_dim, output_dim, res_norm='adain', activ=activ, pad_type=pad_type)
+        #self.dec = Decoder(n_downsample, n_res, self.enc_content.output_dim*2, output_dim, res_norm='adain', activ=activ, pad_type=pad_type)
+
+        # MLP to generate AdaIN parameters
+        #self.mlp = MLP(style_dim, self.get_num_adain_params(self.dec), mlp_dim, 3, norm='none', activ=activ)
+        self.mlp = MappingNetwork(style_dim,8)
+
+    def forward(self, images):
+        # reconstruct an image
+        content, style_fake = self.encode(images)
+        images_recon = self.decode(content, style_fake)
+        return images_recon
+
+    def encode_condi(self, images):
+        # encode condition to latent
+        condi = self.enc_condi(images)
+        return condi
+
+    def encode(self, images):
+        # encode an image to its content and style codes
+        style_fake = self.enc_style(images)
+        content = self.enc_content(images)
+        return content, style_fake
+
+    def decode(self, content, style, condi):
+        # decode content and style codes to an image
+        #adain_params = self.mlp(style)
+        #self.assign_adain_params(adain_params, self.dec)
+        #images = self.dec(content, condi)
+        #images = self.dec(torch.cat((content, condi), 1))
+        w = self.mlp(style)
+        images = self.dec(torch.cat((content,condi), 1), w, None)
+        return images
+
+#modulateDecoder#
+class MoDecoder(nn.Module):
+    def __init__(self, n_upsample, style_dim, dim, output_dim, res_norm='modulate', activ='relu', pad_type='zero'):
+        super(MoDecoder, self).__init__()
+
+        self.model = []
+        # Modulate blocks
+        # Get style vector from $w$ (denoted by $A$ in the diagram) with
+        # an [equalized learning-rate linear layer](#equalized_linear)
+        self.to_style = EqualizedLinear(style_dim, dim, bias=1.0)
+        # Weight modulated convolution layer
+        self.conv = Conv2dWeightModulate(dim, dim, kernel_size=3)
+        # Noise scale
+        self.scale_noise = nn.Parameter(torch.zeros(1))
+        # Bias
+        self.bias = nn.Parameter(torch.zeros(dim))
+
+        # Activation function
+        self.activation = nn.LeakyReLU(0.2, True)
+
+        #self.model += [ResBlocks(n_res, dim, res_norm, activ, pad_type=pad_type)]
+        # upsampling blocks
+        for i in range(n_upsample):
+            self.model += [nn.Upsample(scale_factor=2),
+                           Conv2dBlock(dim, dim // 2, 5, 1, 2, norm='ln', activation=activ, pad_type=pad_type)]
+            dim //= 2
+        # use reflection padding in the last conv layer
+        self.model += [Conv2dBlock(dim, output_dim, 7, 1, 3, norm='none', activation='tanh', pad_type=pad_type)]
+        self.model = nn.Sequential(*self.model)
+
+    def forward(self, x: torch.Tensor, w: torch.Tensor, noise: Optional[torch.Tensor]):
+        # Get style vector $s$
+        s = self.to_style(w)
+        # Weight modulated convolution
+        x = self.conv(x, s)
+        # Scale and add noise
+        if noise is not None:
+            x = x + self.scale_noise[None, :, None, None] * noise
+        x = self.activation(x + self.bias[None, :, None, None])
+        return self.model(x)
+##################################################################################
+# StyleGAN2 Convolution with Weight Modulation and Demodulation 
+##################################################################################    
+class Conv2dWeightModulate(nn.Module):
+    """
+    ### Convolution with Weight Modulation and Demodulation
+    This layer scales the convolution weights by the style vector and demodulates by normalizing it.
+    """
+    def __init__(self, in_features: int, out_features: int, kernel_size: int,
+                 demodulate: float = True, eps: float = 1e-8):
+        """
+        * `in_features` is the number of features in the input feature map
+        * `out_features` is the number of features in the output feature map
+        * `kernel_size` is the size of the convolution kernel
+        * `demodulate` is flag whether to normalize weights by its standard deviation
+        * `eps` is the $\epsilon$ for normalizing
+        """
+        super().__init__()
+        # Number of output features
+        self.out_features = out_features
+        # Whether to normalize weights
+        self.demodulate = demodulate
+        # Padding size
+        self.padding = (kernel_size - 1) // 2
+
+        # [Weights parameter with equalized learning rate](#equalized_weight)
+        self.weight = EqualizedWeight([out_features, in_features, kernel_size, kernel_size])
+        # $\epsilon$
+        self.eps = eps
+
+    def forward(self, x: torch.Tensor, s: torch.Tensor):
+        """
+        * `x` is the input feature map of shape `[batch_size, in_features, height, width]`
+        * `s` is style based scaling tensor of shape `[batch_size, in_features]`
+        """
+
+        # Get batch size, height and width
+        b, _, h, w = x.shape
+
+        # Reshape the scales
+        s = s[:, None, :, None, None]
+        # Get [learning rate equalized weights](#equalized_weight)
+        weights = self.weight()[None, :, :, :, :]
+        # $$w`_{i,j,k} = s_i * w_{i,j,k}$$
+        # where $i$ is the input channel, $j$ is the output channel, and $k$ is the kernel index.
+        #
+        # The result has shape `[batch_size, out_features, in_features, kernel_size, kernel_size]`
+        weights = weights * s
+
+        # Demodulate
+        if self.demodulate:
+            # $$\sigma_j = \sqrt{\sum_{i,k} (w'_{i, j, k})^2 + \epsilon}$$
+            sigma_inv = torch.rsqrt((weights ** 2).sum(dim=(2, 3, 4), keepdim=True) + self.eps)
+            # $$w''_{i,j,k} = \frac{w'_{i,j,k}}{\sqrt{\sum_{i,k} (w'_{i, j, k})^2 + \epsilon}}$$
+            weights = weights * sigma_inv
+
+        # Reshape `x`
+        x = x.reshape(1, -1, h, w)
+
+        # Reshape weights
+        _, _, *ws = weights.shape
+        weights = weights.reshape(b * self.out_features, *ws)
+
+        # Use grouped convolution to efficiently calculate the convolution with sample wise kernel.
+        # i.e. we have a different kernel (weights) for each sample in the batch
+        x = func.conv2d(x, weights, padding=self.padding, groups=b)
+
+        # Reshape `x` to `[batch_size, out_features, height, width]` and return
+        return x.reshape(-1, self.out_features, h, w)
+
+class MappingNetwork(nn.Module):
+    """
+    <a id="mapping_network"></a>
+    ## Mapping Network
+    ![Mapping Network](mapping_network.svg)
+    This is an MLP with 8 linear layers.
+    The mapping network maps the latent vector $z \in \mathcal{W}$
+    to an intermediate latent space $w \in \mathcal{W}$.
+    $\mathcal{W}$ space will be disentangled from the image space
+    where the factors of variation become more linear.
+    """
+
+    def __init__(self, features: int, n_layers: int):
+        """
+        * `features` is the number of features in $z$ and $w$
+        * `n_layers` is the number of layers in the mapping network.
+        """
+        super().__init__()
+
+        # Create the MLP
+        layers = []
+        for i in range(n_layers):
+            # [Equalized learning-rate linear layers](#equalized_linear)
+            layers.append(EqualizedLinear(features, features))
+            # Leaky Relu
+            layers.append(nn.LeakyReLU(negative_slope=0.2, inplace=True))
+
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, z: torch.Tensor):
+        # Normalize $z$
+        z = func.normalize(z, dim=1)
+        # Map $z$ to $w$
+        return self.net(z)
+
+class EqualizedLinear(nn.Module):
+    """
+    <a id="equalized_linear"></a>
+    ## Learning-rate Equalized Linear Layer
+    This uses [learning-rate equalized weights](#equalized_weights) for a linear layer.
+    """
+
+    def __init__(self, in_features: int, out_features: int, bias: float = 0.):
+        """
+        * `in_features` is the number of features in the input feature map
+        * `out_features` is the number of features in the output feature map
+        * `bias` is the bias initialization constant
+        """
+
+        super().__init__()
+        # [Learning-rate equalized weights](#equalized_weights)
+        self.weight = EqualizedWeight([out_features, in_features])
+        # Bias
+        self.bias = nn.Parameter(torch.ones(out_features) * bias)
+
+    def forward(self, x: torch.Tensor):
+        # Linear transformation
+        return func.linear(x, self.weight(), bias=self.bias)
+        
+class EqualizedWeight(nn.Module):
+    """
+    <a id="equalized_weight"></a>
+    ## Learning-rate Equalized Weights Parameter
+    This is based on equalized learning rate introduced in the Progressive GAN paper.
+    Instead of initializing weights at $\mathcal{N}(0,c)$ they initialize weights
+    to $\mathcal{N}(0, 1)$ and then multiply them by $c$ when using it.
+    $$w_i = c \hat{w}_i$$
+    The gradients on stored parameters $\hat{w}$ get multiplied by $c$ but this doesn't have
+    an affect since optimizers such as Adam normalize them by a running mean of the squared gradients.
+    The optimizer updates on $\hat{w}$ are proportionate to the learning rate $\lambda$.
+    But the effective weights $w$ get updated proportionately to $c \lambda$.
+    Without equalized learning rate, the effective weights will get updated proportionately to just $\lambda$.
+    So we are effectively scaling the learning rate by $c$ for these weight parameters.
+    """
+    def __init__(self, shape: List[int]):
+        """
+        * `shape` is the shape of the weight parameter
+        """
+        super().__init__()
+
+        # He initialization constant
+        self.c = 1 / np.sqrt(np.prod(shape[1:]))
+        # Initialize the weights with $\mathcal{N}(0, 1)$
+        self.weight = nn.Parameter(torch.randn(shape))
+        # Weight multiplication coefficient
+
+    def forward(self):
+        # Multiply the weights by $c$ and return
+        return self.weight * self.c
+
+class PathLengthPenalty(nn.Module):
+    """
+    <a id="path_length_penalty"></a>
+    ## Path Length Penalty
+    This regularization encourages a fixed-size step in $w$ to result in a fixed-magnitude
+    change in the image.
+    $$\mathbb{E}_{w \sim f(z), y \sim \mathcal{N}(0, \mathbf{I})}
+      \Big(\Vert \mathbf{J}^\top_{w} y \Vert_2 - a \Big)^2$$
+    where $\mathbf{J}_w$ is the Jacobian
+    $\mathbf{J}_w = \frac{\partial g}{\partial w}$,
+    $w$ are sampled from $w \in \mathcal{W}$ from the mapping network, and
+    $y$ are images with noise $\mathcal{N}(0, \mathbf{I})$.
+    $a$ is the exponential moving average of $\Vert \mathbf{J}^\top_{w} y \Vert_2$
+    as the training progresses.
+    $\mathbf{J}^\top_{w} y$ is calculated without explicitly calculating the Jacobian using
+    $$\mathbf{J}^\top_{w} y = \nabla_w \big(g(w) \cdot y \big)$$
+    """
+
+    def __init__(self, beta: float):
+        """
+        * `beta` is the constant $\beta$ used to calculate the exponential moving average $a$
+        """
+        super().__init__()
+
+        # $\beta$
+        self.beta = beta
+        # Number of steps calculated $N$
+        self.steps = nn.Parameter(torch.tensor(0.), requires_grad=False)
+        # Exponential sum of $\mathbf{J}^\top_{w} y$
+        # $$\sum^N_{i=1} \beta^{(N - i)}[\mathbf{J}^\top_{w} y]_i$$
+        # where $[\mathbf{J}^\top_{w} y]_i$ is the value of it at $i$-th step of training
+        self.exp_sum_a = nn.Parameter(torch.tensor(0.), requires_grad=False)
+
+    def forward(self, w: torch.Tensor, x: torch.Tensor):
+        """
+        * `w` is the batch of $w$ of shape `[batch_size, d_latent]`
+        * `x` are the generated images of shape `[batch_size, 3, height, width]`
+        """
+        # Get the device
+        device = x.device
+        # Get number of pixels
+        image_size = x.shape[2] * x.shape[3]
+        # Calculate $y \in \mathcal{N}(0, \mathbf{I})$
+        y = torch.randn(x.shape, device=device)
+        # Calculate $\big(g(w) \cdot y \big)$ and normalize by the square root of image size.
+        # This is scaling is not mentioned in the paper but was present in
+        # [their implementation](https://github.com/NVlabs/stylegan2/blob/master/training/loss.py#L167).
+        output = (x * y).sum() / np.sqrt(image_size)
+
+        # Calculate gradients to get $\mathbf{J}^\top_{w} y$
+        gradients, *_ = torch.autograd.grad(outputs=output,
+                                            inputs=w,
+                                            grad_outputs=torch.ones(output.shape, device=device),
+                                            create_graph=True)
+        # Calculate L2-norm of $\mathbf{J}^\top_{w} y$
+        #norm = (gradients ** 2).sum(dim=2).mean(dim=1).sqrt()
+        norm = (gradients ** 2).mean(dim=1).sqrt()
+
+        # Regularize after first step
+        if self.steps > 0:
+            # Calculate $a$
+            # $$\frac{1}{1 - \beta^N} \sum^N_{i=1} \beta^{(N - i)}[\mathbf{J}^\top_{w} y]_i$$
+            a = self.exp_sum_a / (1 - self.beta ** self.steps)
+            # Calculate the penalty
+            # $$\mathbb{E}_{w \sim f(z), y \sim \mathcal{N}(0, \mathbf{I})}
+            # \Big(\Vert \mathbf{J}^\top_{w} y \Vert_2 - a \Big)^2$$
+            loss = torch.mean((norm - a) ** 2)
+        else:
+            # Return a dummy loss if we can't calculate $a$
+            loss = norm.new_tensor(0)
+
+        # Calculate the mean of $\Vert \mathbf{J}^\top_{w} y \Vert_2$
+        mean = norm.mean().detach()
+        # Update exponential sum
+        self.exp_sum_a.mul_(self.beta).add_(mean, alpha=1 - self.beta)
+        # Increment $N$
+        self.steps.add_(1.)
+
+        # Return the penalty
+        return loss
+
 ##################################################################################
 # build feature network 
 ##################################################################################       
@@ -2059,3 +2548,83 @@ class SpectralNorm(nn.Module):
     def forward(self, *args):
         self._update_u_v()
         return self.module.forward(*args)
+
+class SwitchNorm2d(nn.Module):
+    def __init__(self, num_features, eps=1e-5, momentum=0.9, using_moving_average=True, using_bn=True,
+                 last_gamma=False):
+        super(SwitchNorm2d, self).__init__()
+        self.eps = eps
+        self.momentum = momentum
+        self.using_moving_average = using_moving_average
+        self.using_bn = using_bn
+        self.last_gamma = last_gamma
+        self.weight = nn.Parameter(torch.ones(1, num_features, 1, 1))
+        self.bias = nn.Parameter(torch.zeros(1, num_features, 1, 1))
+        if self.using_bn:
+            self.mean_weight = nn.Parameter(torch.ones(3))
+            self.var_weight = nn.Parameter(torch.ones(3))
+        else:
+            self.mean_weight = nn.Parameter(torch.ones(2))
+            self.var_weight = nn.Parameter(torch.ones(2))
+        if self.using_bn:
+            self.register_buffer('running_mean', torch.zeros(1, num_features, 1))
+            self.register_buffer('running_var', torch.zeros(1, num_features, 1))
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        if self.using_bn:
+            self.running_mean.zero_()
+            self.running_var.zero_()
+        if self.last_gamma:
+            self.weight.data.fill_(0)
+        else:
+            self.weight.data.fill_(1)
+        self.bias.data.zero_()
+
+    def _check_input_dim(self, input):
+        if input.dim() != 4:
+            raise ValueError('expected 4D input (got {}D input)'
+                             .format(input.dim()))
+
+    def forward(self, x):
+        self._check_input_dim(x)
+        N, C, H, W = x.size()
+        x = x.view(N, C, -1)
+        mean_in = x.mean(-1, keepdim=True)
+        var_in = x.var(-1, keepdim=True)
+
+        mean_ln = mean_in.mean(1, keepdim=True)
+        temp = var_in + mean_in ** 2
+        var_ln = temp.mean(1, keepdim=True) - mean_ln ** 2
+
+        if self.using_bn:
+            if self.training:
+                mean_bn = mean_in.mean(0, keepdim=True)
+                var_bn = temp.mean(0, keepdim=True) - mean_bn ** 2
+                if self.using_moving_average:
+                    self.running_mean.mul_(self.momentum)
+                    self.running_mean.add_((1 - self.momentum) * mean_bn.data)
+                    self.running_var.mul_(self.momentum)
+                    self.running_var.add_((1 - self.momentum) * var_bn.data)
+                else:
+                    self.running_mean.add_(mean_bn.data)
+                    self.running_var.add_(mean_bn.data ** 2 + var_bn.data)
+            else:
+                mean_bn = torch.autograd.Variable(self.running_mean)
+                var_bn = torch.autograd.Variable(self.running_var)
+
+        softmax = nn.Softmax(0)
+        mean_weight = softmax(self.mean_weight)
+        var_weight = softmax(self.var_weight)
+
+        if self.using_bn:
+            mean = mean_weight[0] * mean_in + mean_weight[1] * mean_ln + mean_weight[2] * mean_bn
+            var = var_weight[0] * var_in + var_weight[1] * var_ln + var_weight[2] * var_bn
+        else:
+            mean = mean_weight[0] * mean_in + mean_weight[1] * mean_ln
+            var = var_weight[0] * var_in + var_weight[1] * var_ln
+
+        x = (x-mean) / (var+self.eps).sqrt()
+        x = x.view(N, C, H, W)
+        return x * self.weight + self.bias

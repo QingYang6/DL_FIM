@@ -14,7 +14,8 @@ class MUNITSDGModel(BaseModel):
     """
     @staticmethod
     def modify_commandline_options(parser, is_train=True):
-        parser.set_defaults(no_dropout=True,norm='AdaIn', netG='AdaINGen',netD='MsImageDis',use_same_D=True, use_same_G=True)  # default MUNIT did not use dropout
+        parser.set_defaults(no_dropout=True,norm='AdaIn', netG='AdaINGen',netD='MsImageDis',use_same_D=True, use_same_G=True,\
+            CtoE = True, DEM = False)  # default MUNIT did not use dropout
         if is_train:
             parser.add_argument('--style_dim', type=float, default=8)
             parser.add_argument('--n_downsample', type=float, default=2)
@@ -44,7 +45,8 @@ class MUNITSDGModel(BaseModel):
         # specify the images you want to save/display. The training/test scripts will call <BaseModel.get_current_visuals>
         #visual_names_A = ['real_A', 'fake_B']
         #visual_names_B = ['real_B', 'fake_A']
-        self.visual_names = ['real_A', 'fake_B', 'real_B']  # combine visualizations for A and B
+        #self.visual_names = ['real_A', 'fake_B', 'real_B']  # combine visualizations for A and B
+        self.visual_names = ['real_B','fake_B','real_A', 'fake_A','real_C', 'fake_C','fake_C2']
         # specify the models you want to save to the disk. The training/test scripts will call <BaseModel.save_networks> and <BaseModel.load_networks>.
         if self.isTrain:
             if not opt.use_same_G:
@@ -60,20 +62,30 @@ class MUNITSDGModel(BaseModel):
         # define networks (both Generators and discriminators)
         # The naming is different from those used in the paper.
         # Code (vs. paper): G_A (G), G_B (F), D_A (D_Y), D_B (D_X)
-        self.netG_A = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.netG, 'none',
+        if not opt.CtoE:
+            input2G = 2
+            input2D = opt.input_nc
+        else:
+            if self.opt.DEM:
+                input2G = opt.input_nc
+                input2D = opt.input_nc
+            else:
+                input2G = 2
+                input2D = 4
+        self.netG_A = networks.define_G(input2G, opt.output_nc, opt.ngf, opt.netG, 'none',
                                         not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids,\
                                         opt.style_dim,opt.n_downsample, opt.n_res, opt.mlp_dim, activ='relu', pad_type='reflect')
         if not opt.use_same_G:
-            self.netG_B = networks.define_G(opt.output_nc, opt.input_nc, opt.ngf, opt.netG, 'none',
+            self.netG_B = networks.define_G(input2G, opt.output_nc, opt.ngf, opt.netG, 'none',
                                             not opt.no_dropout, opt.init_type, opt.init_gain, self.gpu_ids,\
                                             opt.style_dim,opt.n_downsample, opt.n_res,  opt.mlp_dim, activ='relu', pad_type='reflect')
 
         if self.isTrain:  # define discriminators
-            self.netD_A = networks.define_D(opt.input_nc+opt.output_nc, opt.ndf, opt.netD,\
+            self.netD_A = networks.define_D(input2D, opt.ndf, opt.netD,\
                                             opt.n_layers_D, 'none', opt.init_type, opt.init_gain, self.gpu_ids,\
                                             mask_size=128, s1=32, s2=16, activ='lrelu', num_scales=3, pad_type='reflect')
             if not opt.use_same_D:
-                self.netD_B = networks.define_D(opt.output_nc+opt.input_nc, opt.ndf, opt.netD,\
+                self.netD_B = networks.define_D(input2D, opt.ndf, opt.netD,\
                                             opt.n_layers_D, 'none', opt.init_type, opt.init_gain, self.gpu_ids,\
                                             mask_size=128, s1=32, s2=16, activ='lrelu', num_scales=3, pad_type='reflect')
 
@@ -94,7 +106,7 @@ class MUNITSDGModel(BaseModel):
             self.optimizers.append(self.optimizer_G)
             self.optimizers.append(self.optimizer_D)
 
-    def set_input(self, input):
+    def set_input_ori(self, input):
         """Unpack input data from the dataloader and perform necessary pre-processing steps.
 
         Parameters:
@@ -107,7 +119,76 @@ class MUNITSDGModel(BaseModel):
         self.real_B = input['B' if AtoB else 'A'].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
-    def sample(self):
+    def sample_selfdistribution(self):
+        '''Just sample cross domain'''
+        #style_rand = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)
+        self.realA_C = torch.cat((self.real_A, self.real_C_a), 1)
+        self.realB_C = torch.cat((self.real_B, self.real_C_b), 1)
+        self.realC_C = torch.cat((self.real_C, self.real_C_c), 1)
+        self.visual_names = ['real_A', 'fake_BA', 'fake_CA', 'real_B', 'fake_AB', 'fake_CB', 'real_C', 'fake_AC', 'fake_BC'] 
+        #if self.opt.CtoE: 
+        #    content_a, _ = self.netG_A.encode(self.realA_C)
+        #    content_b, _ = self.netG_A.encode(self.realB_C)
+        #    content_c, _ = self.netG_A.encode(self.realC_C)
+        #else:
+        #    content_a, _ = self.netG_A.encode(self.real_A)
+        #    content_b, _ = self.netG_A.encode(self.real_B)
+        #    content_c, _ = self.netG_A.encode(self.real_C)
+        s_a = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)
+        #s_b = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)
+        #s_c = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)
+        contentB, styleB = self.netG_A.encode(self.real_B)
+        contentA, styleA = self.netG_A.encode(self.real_A)
+        contentC, styleC = self.netG_A.encode(self.real_C)
+        self.fake_BA = self.netG_A.decode(contentB, styleA)
+        self.fake_CA = self.netG_A.decode(contentC, styleA)
+        self.fake_AB = self.netG_A.decode(contentA, styleB)
+        self.fake_CB = self.netG_A.decode(contentC, styleB)
+        self.fake_AC = self.netG_A.decode(contentA, styleC)
+        self.fake_BC = self.netG_A.decode(contentB, styleC)
+
+    def set_input_test(self, input):
+        AtoB = self.opt.direction == 'AtoB'
+        raw_AC = input['A' if AtoB else 'B']
+        self.real_A = raw_AC[:,[0,1],:,:].to(self.device)
+        self.real_B = raw_AC[:,[3,4],:,:].to(self.device)
+        self.real_C = raw_AC[:,[9,10],:,:].to(self.device)
+        #self.real_LCC = raw_BC[:,[6,7],:,:].to(self.device)
+        if self.opt.DEM:
+            self.real_C_a = raw_AC[:,[2,6,7,8],:,:].to(self.device)
+            self.real_C_b = raw_AC[:,[5,6,7,8],:,:].to(self.device)
+            self.real_C_c = raw_AC[:,[11,6,7,8],:,:].to(self.device)
+        else:
+            self.real_C_a = raw_AC[:,[2,6,7],:,:].to(self.device)
+            self.real_C_b = raw_AC[:,[5,6,7],:,:].to(self.device)
+            self.real_C_c = raw_AC[:,[11,6,7],:,:].to(self.device)
+        self.image_paths = input['A_paths' if AtoB else 'B_paths']
+
+    def set_input(self, input):
+        AtoB = self.opt.direction == 'AtoB'
+        raw_AC = input['A' if AtoB else 'B']
+        raw_BC = input['B' if AtoB else 'A']
+        self.real_A_raw = raw_AC[:,[0,1],:,:].to(self.device)
+        self.real_B_raw = raw_AC[:,[3,4],:,:].to(self.device)
+        #self.real_LCC = raw_BC[:,[6,7],:,:].to(self.device)
+        self.real_A2 = raw_BC[:,[0,1],:,:].to(self.device)
+        if self.opt.DEM:
+            self.real_C_a = raw_AC[:,[2,6,7,8],:,:].to(self.device)
+            self.real_C_b = raw_AC[:,[5,6,7,8],:,:].to(self.device)
+            self.real_C_a2 = raw_BC[:,[2,6,7,8],:,:].to(self.device)
+        else:
+            self.real_C_a = raw_AC[:,[2,6,7],:,:].to(self.device)
+            self.real_C_b = raw_AC[:,[5,6,7],:,:].to(self.device)
+            self.real_C_a2 = raw_BC[:,[2,6,7],:,:].to(self.device)
+        #self.real_A = torch.cat((self.real_A_raw, self.real_C_a), 1)
+        #self.real_B = torch.cat((self.real_B_raw, self.real_C_b), 1)
+        #self.real_C = torch.cat((self.real_A2, self.real_C_a2), 1)
+        self.real_A = self.real_A_raw 
+        self.real_B = self.real_B_raw 
+        self.real_C = self.real_A2 
+        self.image_paths = input['A_paths' if AtoB else 'B_paths']
+
+    def sample_ori(self):
         '''Just sample cross domain'''
         #style_rand = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)
         if not self.opt.use_same_G:
@@ -117,6 +198,26 @@ class MUNITSDGModel(BaseModel):
             _, style = self.netG_A.encode(self.real_B)
             content, _ = self.netG_A.encode(self.real_A)            
         self.fake_B = self.netG_A.decode(content, style)
+
+    def sample(self):
+        '''Just sample cross domain'''
+        style_rand = torch.randn(self.real_A.size(0), self.opt.style_dim,1,1).to(self.device)
+        if self.opt.CtoE:
+            self.realA_C = torch.cat((self.real_A_raw, self.real_C_a), 1)
+            self.realB_C = torch.cat((self.real_B_raw, self.real_C_b), 1)
+            self.realC_C = torch.cat((self.real_A2, self.real_C_a2), 1)
+        else:
+            self.realA_C = self.real_A
+            self.realB_C = self.real_B
+            self.realC_C = self.real_C_c
+        contentB, styleB = self.netG_A.encode(self.real_A)
+        contentA, styleA = self.netG_A.encode(self.real_B)
+        contentC, styleC = self.netG_A.encode(self.real_C)
+        self.fake_B = self.netG_A.decode(contentB, styleA)
+        self.fake_A = self.netG_A.decode(contentA, styleB)
+        self.fake_C = self.netG_A.decode(contentC, style_rand)
+        self.real_C = self.real_A2
+        self.fake_C2 = self.netG_A.decode(contentC, styleA)
 
     def forward(self):
         self.s_a = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)

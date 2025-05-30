@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH -p gpu
-#SBATCH -n 8
+#SBATCH -p general-gpu
+#SBATCH --constraint="a100"
 #SBATCH --gres=gpu:1
 #SBATCH -t 12:00:00
 lsb_release -a

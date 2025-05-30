@@ -37,7 +37,8 @@ class BiCycleGANModel(BaseModel):
         else:
             self.loss_names = ['G_GAN', 'D', 'G_GAN2', 'D2', 'G_L1', 'z_L1', 'kl']
         # specify the images you want to save/display. The program will call base_model.get_current_visuals
-        self.visual_names = ['real_A', 'fake_B', 'real_B']
+        #self.visual_names = ['real_A', 'fake_B', 'real_B']
+        self.visual_names = ['real_B','fake_B','fake_B_random','fake_B_random2']
         # specify the models you want to save to the disk. The program will call base_model.save_networks and base_model.load_networks
         use_D = opt.isTrain and opt.lambda_GAN > 0.0
         use_D2 = opt.isTrain and opt.lambda_GAN2 > 0.0 and not opt.use_same_D
@@ -106,6 +107,7 @@ class BiCycleGANModel(BaseModel):
         AtoB = self.opt.direction == 'AtoB'
         self.real_A = input['A' if AtoB else 'B'].to(self.device)
         self.real_B = input['B' if AtoB else 'A'].to(self.device)
+        self.real_A = self.real_A[:,[0,1],:,:]
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
     def get_z_random(self, batch_size, nz, random_type='gauss'):
@@ -128,6 +130,10 @@ class BiCycleGANModel(BaseModel):
         if z0 is None:
             z0 = self.get_z_random(self.real_A.size(0), self.opt.nz)
         self.fake_B = self.netG(self.real_A, z0)
+        z_random = self.get_z_random(self.real_A.size(0), self.opt.nz)
+        z_random2 = self.get_z_random(self.real_A.size(0), self.opt.nz)
+        self.fake_B_random = self.netG(self.real_A, z_random)
+        self.fake_B_random2 = self.netG(self.real_A, z_random2)
         #return self.real_A, self.fake_B, self.real_B
 
     def forward(self):
@@ -150,6 +156,9 @@ class BiCycleGANModel(BaseModel):
         self.fake_B_encoded = self.netG(self.real_A_encoded, self.z_encoded)
         # generate fake_B_random
         self.fake_B_random = self.netG(self.real_A_encoded, self.z_random)
+        # fake_B random 2
+        self.z_random2 = self.get_z_random(self.real_A_random.size(0), self.opt.nz)
+        self.fake_B_random2 = self.netG(self.real_A_random.detach(), self.z_random2)
         if self.opt.conditional_D:   # tedious conditoinal data
             self.fake_data_encoded = torch.cat([self.real_A_encoded, self.fake_B_encoded], 1)
             self.real_data_encoded = torch.cat([self.real_A_encoded, self.real_B_encoded], 1)
@@ -247,6 +256,8 @@ class BiCycleGANModel(BaseModel):
             self.set_requires_grad([self.netE], False)
             self.backward_G_alone()
             self.set_requires_grad([self.netE], True)
+        else:
+            self.loss_z_L1 = 0.0
 
         self.optimizer_E.step()
         self.optimizer_G.step()

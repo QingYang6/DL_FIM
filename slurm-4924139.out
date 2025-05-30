@@ -1,0 +1,117 @@
+LSB Version:	:core-4.1-amd64:core-4.1-noarch
+Distributor ID:	RedHatEnterprise
+Description:	Red Hat Enterprise Linux release 8.8 (Ootpa)
+Release:	8.8
+Codename:	Ootpa
+SLURM_JOBID 4924139 SLURM_JOBID
+1.12.1
+----------------- Options ---------------
+                    batch: instance                      	[default: batch]
+               batch_size: 16                            	[default: 1]
+                    beta1: 0.5                           
+          checkpoints_dir: checkpoints                   
+            conditional_D: True                          
+           continue_train: True                          
+                crop_size: 256                           
+                 dataroot: /gpfs/sharedfs1/manoslab/data/Qdata/GAN_CD/Downscaling/VIIRs_RAPID/Samples/RAPIDonly_PerW05_buf1575_R20	[default: None]
+             dataset_mode: RAPIDFIM                      	[default: Land2S1]
+                direction: AtoB                          
+              display_env: main                          
+             display_freq: 400                           
+               display_id: 1                             
+            display_ncols: 4                             
+             display_port: 8097                          
+           display_server: http://localhost              
+          display_winsize: 256                           
+                    epoch: latest                        
+              epoch_count: 1                             
+                 gan_mode: vanilla                       	[default: lsgan]
+                  gpu_ids: 0                             
+                init_gain: 0.02                          
+                init_type: kaiming                       
+                 input_nc: 2                             	[default: 6]
+                  isTrain: True                          	[default: None]
+               lambda_GAN: 1.0                           
+              lambda_GAN2: 0.0                           	[default: 1.0]
+                lambda_L1: 10.0                          
+                lambda_kl: 0                             
+                 lambda_z: 1                             
+               latent_dim: 9                             
+                load_iter: 0                             	[default: 0]
+                load_size: 256                           
+                  log_dir: log                           
+                       lr: 0.0004                        	[default: 0.0002]
+           lr_decay_iters: 50                            
+                lr_policy: linear                        
+              main_ex_dir: /gpfs/sharedfs1/manoslab/data/Qdata/GAN_OUTPUT
+         max_dataset_size: inf                           
+                    model: CycleED                       	[default: pix2pix_attn]
+               n_layers_D: 3                             
+                     name: VR_Ronly_condi_sameD_CVAE_noWOP_twoDEM__RAPIDFIM_CycleED_resnet_9blocks_vanilla_Norminstance_batchsize16	[default: experiment_name]
+                      ndf: 64                            	[default: 64]
+                      nef: 64                            
+                     netD: basic_256_multi               
+                     netE: basic_256                     
+                     netG: resnet_9blocks                
+                      ngf: 64                            	[default: 64]
+                    niter: 100                           
+              niter_decay: 200                           	[default: 100]
+                       nl: relu                          
+               no_dropout: False                         
+                no_encode: False                         
+                  no_flip: False                         
+                  no_html: False                         
+                     norm: instance                      
+                   num_Ds: 2                             
+                num_class: 1                             
+              num_threads: 8                             
+                       nz: 128                           
+                output_nc: 1                             
+                    phase: train                         
+                pool_size: 50                            
+             predict_freq: 20000                         
+               preprocess: resize_and_crop               
+               print_freq: 50                            
+              results_dir: results                       
+             save_by_iter: False                         
+          save_epoch_freq: 1                             	[default: 5]
+         save_latest_freq: -1                            
+           serial_batches: False                         
+              split_ratio: 0.02                          
+            split_shuffle: False                         
+                   suffix: _{dataset_mode}_{model}_{netG}_{gan_mode}_Norm{batch}_batchsize{batch_size}
+         update_html_freq: 1000                          
+                 upsample: basic                         
+              use_dropout: False                         
+               use_same_D: True                          
+             valid_batchs: 10                            
+              valid_nrows: 10                            
+                  verbose: False                         
+                where_add: all                           
+----------------- End -------------------
+Train dataset [RAPIDFIMDataset] was created
+Vali dataset [Subset] was created
+The number of training images = 47675
+The number of validating images = 973
+Use GPU!
+NVIDIA A100-PCIE-40GB
+initialize network with kaiming
+initialize network with kaiming
+initialize network with kaiming
+initialize network with kaiming
+model [CycleEDModel] was created
+loading the model from /gpfs/sharedfs1/manoslab/data/Qdata/GAN_OUTPUT/VR_Ronly_condi_sameD_CVAE_noWOP_twoDEM__RAPIDFIM_CycleED_resnet_9blocks_vanilla_Norminstance_batchsize16/checkpoints/916_net_E.pth
+Traceback (most recent call last):
+  File "/shared/stormcenter/Qing_Y/GAN_ChangeDetection/ASGIT/train_novisdom.py", line 64, in <module>
+    total_iters = model.setup(opt)               # regular setup: load and print networks; create schedulers
+  File "/shared/stormcenter/Qing_Y/GAN_ChangeDetection/ASGIT/models/base_model.py", line 129, in setup
+    self.load_networks(total_iters)
+  File "/shared/stormcenter/Qing_Y/GAN_ChangeDetection/ASGIT/models/base_model.py", line 251, in load_networks
+    state_dict = torch.load(load_path, map_location=str(self.device))
+  File "/home/qiy17007/miniconda3/envs/torch3/lib/python3.9/site-packages/torch/serialization.py", line 699, in load
+    with _open_file_like(f, 'rb') as opened_file:
+  File "/home/qiy17007/miniconda3/envs/torch3/lib/python3.9/site-packages/torch/serialization.py", line 230, in _open_file_like
+    return _open_file(name_or_buffer, mode)
+  File "/home/qiy17007/miniconda3/envs/torch3/lib/python3.9/site-packages/torch/serialization.py", line 211, in __init__
+    super(_open_file, self).__init__(open(name, mode))
+FileNotFoundError: [Errno 2] No such file or directory: '/gpfs/sharedfs1/manoslab/data/Qdata/GAN_OUTPUT/VR_Ronly_condi_sameD_CVAE_noWOP_twoDEM__RAPIDFIM_CycleED_resnet_9blocks_vanilla_Norminstance_batchsize16/checkpoints/916_net_E.pth'

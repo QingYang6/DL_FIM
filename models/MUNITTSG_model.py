@@ -14,7 +14,7 @@ class MUNITTSGModel(BaseModel):
     """
     @staticmethod
     def modify_commandline_options(parser, is_train=True):
-        parser.set_defaults(use_same_D=False, use_same_G=True, CtoE = True, DEM = True, no_dropout=True,norm='AdaIn', netG='AdaINGen_TWOE',netD='MsImageDis')  # default MUNIT did not use dropout
+        parser.set_defaults(use_same_D=False, use_same_G=True, CtoE = True, DEM = False, no_dropout=True,norm='AdaIn', netG='AdaINGen_TWOE',netD='MsImageDis')  # default MUNIT did not use dropout
         if is_train:
             parser.add_argument('--style_dim', type=float, default=8)
             parser.add_argument('--n_downsample', type=float, default=2)
@@ -42,7 +42,8 @@ class MUNITTSGModel(BaseModel):
         self.loss_names = ['D_A' , 'D_B', 'gp_A' , 'gp_B' , \
             'gen_adv_a', 'gen_recon_x_a', 'gen_cycrecon_x_a', 'gen_recon_s_a','gen_recon_c_a','gen_vgg_a',\
             'gen_adv_b','gen_recon_c_b', 'gen_recon_s_c']
-        self.visual_names = ['real_A', 'fake_B', 'real_B']  # combine visualizations for A and B
+        #self.visual_names = ['real_A', 'fake_B', 'real_B']  # combine visualizations for A and B
+        self.visual_names = ['real_B','fake_B','real_A', 'fake_A','real_C', 'fake_C','fake_C2']
         if self.isTrain:
             if not opt.use_same_D:
                 self.model_names = ['G_A', 'D_A', 'D_B']
@@ -109,7 +110,7 @@ class MUNITTSGModel(BaseModel):
             self.real_C_c = raw_BC[:,[2,6,7],:,:].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
-    def set_input(self, input):
+    def set_input_ori(self, input):
         AtoB = self.opt.direction == 'AtoB'
         raw_AC = input['A' if AtoB else 'B']
         raw_BC = input['B' if AtoB else 'A']
@@ -124,6 +125,24 @@ class MUNITTSGModel(BaseModel):
         else:
             self.real_C_a = raw_AC[:,[2,6,7],:,:].to(self.device)
             self.real_C_b = raw_BC[:,[2,6,7],:,:].to(self.device)
+            self.real_C_c = raw_BC[:,[2,6,7],:,:].to(self.device)
+        self.image_paths = input['A_paths' if AtoB else 'B_paths']
+
+    def set_input(self, input):
+        AtoB = self.opt.direction == 'AtoB'
+        raw_AC = input['A' if AtoB else 'B']
+        raw_BC = input['B' if AtoB else 'A']
+        self.real_A = raw_AC[:,[0,1],:,:].to(self.device)
+        self.real_B = raw_AC[:,[3,4],:,:].to(self.device)
+        #self.real_LCC = raw_BC[:,[6,7],:,:].to(self.device)
+        self.real_C = raw_BC[:,[0,1],:,:].to(self.device)
+        if self.opt.DEM:
+            self.real_C_a = raw_AC[:,[2,6,7,8],:,:].to(self.device)
+            self.real_C_b = raw_AC[:,[5,6,7,8],:,:].to(self.device)
+            self.real_C_c = raw_BC[:,[2,6,7,8],:,:].to(self.device)
+        else:
+            self.real_C_a = raw_AC[:,[2,6,7],:,:].to(self.device)
+            self.real_C_b = raw_AC[:,[5,6,7],:,:].to(self.device)
             self.real_C_c = raw_BC[:,[2,6,7],:,:].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 

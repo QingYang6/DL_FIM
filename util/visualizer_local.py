@@ -7,16 +7,12 @@ import time
 from . import util, html
 from subprocess import Popen, PIPE
 from torchvision.utils import save_image
-sys.path.insert(0, '/shared/stormcenter/Qing_Y/GAN_ChangeDetection/torchimplementation')
-from utils.tensorplt import *
+from util.tensorplt import *
 from scipy.stats import wasserstein_distance
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
-
-
-
 
 def save_images(webpage, visuals, image_path, aspect_ratio=1.0, width=256):
     """Save images to the disk.
@@ -119,6 +115,26 @@ def save_images_vr(webpage, visuals, image_path, aspect_ratio=1.0, width=256, ch
         txts.append(label)
         links.append(image_name)
     webpage.add_images(ims, txts, links, width=width)
+    
+def save_images_vr2(visuals, image_path, Out_path, n_rowval,title):
+    #short_path = ntpath.basename(image_path[0])
+    #name = os.path.splitext(short_path)[0]
+    stakckofimgs = []
+    for label, im_data in visuals.items():
+        stakckofimgs.append(im_data)
+    stackoflistimgs = []
+    stackofVminmax = []
+    img_r2 = None
+    for real_B,fake_B,fake_B_random,fake_B_random2 in zip(*stakckofimgs): 
+        realB_list = util.batch2list(real_B)
+        fake_B_list = util.batch2list(fake_B)
+        fake_B_random_list = util.batch2list(fake_B_random)
+        fake_B_random2_list = util.batch2list(fake_B_random2)
+        stackoflistimgs.extend(realB_list)
+        stackoflistimgs.extend(fake_B_list)
+        stackoflistimgs.extend(fake_B_random_list)
+        stackoflistimgs.extend(fake_B_random2_list)
+    plotwithlabel(stackoflistimgs,img_r2,n_rowval,title,Out_path,None)
 
 def save_images_pix2pix(visuals, image_path, Out_path, n_rowval,title):
     """Save images to the disk. Based on old school matplotlib
@@ -154,17 +170,50 @@ def save_images_pix2pix(visuals, image_path, Out_path, n_rowval,title):
             #print(np.max(arr_RealB))
             Vminmax = [(min(np.min(arr_RealA),np.min(arr_RealB)),max(np.max(arr_RealA),np.max(arr_RealB)))]
             stackofVminmax.extend(Vminmax)
-    else:
+    elif len([*stakckofimgs])==4:
         for real_B,fake_B,fake_B_random,fake_B_random2 in zip(*stakckofimgs): 
             realB_list = util.batch2list(real_B)
+            fake_B_list = util.batch2list(fake_B)
+            fake_B_random_list = util.batch2list(fake_B_random)
+            fake_B_random2_list = util.batch2list(fake_B_random2)
             stackoflistimgs.extend(realB_list)
-            stackoflistimgs.extend(util.batch2list(fake_B))
-            stackoflistimgs.extend(util.batch2list(fake_B_random))
-            stackoflistimgs.extend(util.batch2list(fake_B_random2))
+            stackoflistimgs.extend(fake_B_list)
+            stackoflistimgs.extend(fake_B_random_list)
+            stackoflistimgs.extend(fake_B_random2_list)
             arr_RealB = tensor2numpyarray(realB_list[0])
-            Vminmax = [(min(np.min(arr_RealB),np.min(arr_RealB)),max(np.max(arr_RealB),np.max(arr_RealB)))]
+            arr_fakeB = tensor2numpyarray(fake_B_list[0])
+            arr_fakeBr1 = tensor2numpyarray(fake_B_random_list[0])
+            arr_fakeBr2 = tensor2numpyarray(fake_B_random2_list[0])
+            Vminmax = [(min(np.min(arr_RealB),np.min(arr_fakeB),np.min(arr_fakeBr1),np.min(arr_fakeBr2)),\
+                max(np.max(arr_RealB),np.max(arr_fakeB),np.max(arr_fakeBr1),np.max(arr_fakeBr2)))]
             stackofVminmax.extend(Vminmax)
-    plotwithlabel(stackoflistimgs,img_r2,n_rowval,title,Out_path,stackofVminmax,len([*stakckofimgs]))
+    else:
+        for real_B,fake_B,fake_B_random,fake_B_random2,RC,FC,FC2 in zip(*stakckofimgs): 
+            realB_list = util.batch2list(real_B)
+            fake_B_list = util.batch2list(fake_B)
+            fake_B_random_list = util.batch2list(fake_B_random)
+            fake_B_random2_list = util.batch2list(fake_B_random2)
+            RC_list = util.batch2list(RC)
+            FC_list = util.batch2list(FC)
+            FC2_list = util.batch2list(FC2)
+            stackoflistimgs.extend(realB_list)
+            stackoflistimgs.extend(fake_B_list)
+            stackoflistimgs.extend(fake_B_random_list)
+            stackoflistimgs.extend(fake_B_random2_list)
+            stackoflistimgs.extend(RC_list)
+            stackoflistimgs.extend(FC_list)
+            stackoflistimgs.extend(FC2_list)
+            arr_RealB = tensor2numpyarray(realB_list[0])
+            arr_fakeB = tensor2numpyarray(fake_B_list[0])
+            arr_fakeBr1 = tensor2numpyarray(fake_B_random_list[0])
+            arr_fakeBr2 = tensor2numpyarray(fake_B_random2_list[0])
+            arr_RC = tensor2numpyarray(RC_list[0])
+            arr_FC = tensor2numpyarray(FC_list[0])
+            arr_FC2 = tensor2numpyarray(FC2_list[0])
+            Vminmax = [(min(np.min(arr_RealB),np.min(arr_fakeB),np.min(arr_fakeBr1),np.min(arr_fakeBr2),np.min(arr_RC),np.min(arr_FC),np.min(arr_FC2)),\
+                max(np.max(arr_RealB),np.max(arr_fakeB),np.max(arr_fakeBr1),np.max(arr_fakeBr2),np.min(arr_RC),np.min(arr_FC),np.min(arr_FC2)))]
+            stackofVminmax.extend(Vminmax)
+    plotwithlabel(stackoflistimgs,img_r2,n_rowval,title,Out_path,stackofVminmax,len([*stakckofimgs]),4)
 
 def tensor2numpyarray(ten_image):
     image = ten_image.numpy()
@@ -195,8 +244,19 @@ def save_images_fakeandreal(visuals, image_path, Out_path, i_ms):
             save_image(realB, os.path.join(realdir,str(i_ms)+'.png'))
             save_image(fakeB, os.path.join(fakedir,str(i_ms)+'.png'))
             i_ms += 1
-    else:
+    elif len([*stakckofimgs])==4:
         for realB,fakeB,_,_ in zip(*stakckofimgs):
+            if realB.size(0) > 1:
+                realB = realB[0,:,:]* 0.5 + 0.5
+                fakeB = fakeB[0,:,:]* 0.5 + 0.5
+            else:
+                realB = realB* 0.5 + 0.5
+                fakeB = fakeB* 0.5 + 0.5
+            save_image(realB, os.path.join(realdir,str(i_ms)+'.png'))
+            save_image(fakeB, os.path.join(fakedir,str(i_ms)+'.png'))
+            i_ms += 1
+    else:
+        for realB,fakeB,_,_,_,_,_ in zip(*stakckofimgs):
             if realB.size(0) > 1:
                 realB = realB[0,:,:]* 0.5 + 0.5
                 fakeB = fakeB[0,:,:]* 0.5 + 0.5

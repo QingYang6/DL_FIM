@@ -30,7 +30,7 @@ class DS3XINCModel(BaseModel):
             parser.add_argument('--recon_x_cyc_w', type=float, default=10)
             parser.add_argument('--vgg_w', type=float, default=1)
             parser.add_argument('--lambda_LDS', type=float, default=1, help='weight for diversityGAN')
-            parser.add_argument('--NE_MARGIN_VALUE', type=float, default=-0.25, help='weight for diversityGAN')
+            parser.add_argument('--NE_MARGIN_VALUE', type=float, default=1, help='weight for diversityGAN')
         return parser
 
     def __init__(self, opt):
@@ -60,7 +60,9 @@ class DS3XINCModel(BaseModel):
         'G_xc_ccrsacondic' , 'G_xc_ccrsbcondic' , 'G_xc_ccsaic' ,\
         'G_xc_ccsbic']
 
-        self.visual_names = ['real_A', 'fake_B', 'real_B']  # combine visualizations for A and B
+        #self.visual_names = ['real_A', 'fake_B', 'real_B']  # combine visualizations for A and B
+        #self.visual_names = ['real_B','fake_B','real_C', 'fake_C']
+        self.visual_names = ['real_B','fake_B','real_A', 'fake_A','real_C', 'fake_C']
         if self.isTrain:
             if not opt.use_same_G:
                 self.model_names = ['G_A', 'G_B', 'D_A', 'D_B']
@@ -119,12 +121,9 @@ class DS3XINCModel(BaseModel):
             self.real_C_b = raw_AC[:,[5,6,7,8],:,:].to(self.device)
             self.real_C_c = raw_AC[:,[11,6,7,8],:,:].to(self.device)
         else:
-            self.real_C_a = raw_AC[:,[6,7],:,:].to(self.device)
-            self.real_C_b = raw_AC[:,[6,7],:,:].to(self.device)
-            self.real_C_c = raw_AC[:,[6,7],:,:].to(self.device)
-            self.real_IA_a = raw_AC[:,2,:,:].to(self.device)
-            self.real_IA_b = raw_AC[:,5,:,:].to(self.device)
-            self.real_IA_c = raw_AC[:,11,:,:].to(self.device)
+            self.real_C_a = raw_AC[:,[2,6,7],:,:].to(self.device)
+            self.real_C_b = raw_AC[:,[5,6,7],:,:].to(self.device)
+            self.real_C_c = raw_AC[:,[11,6,7],:,:].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
     def set_input(self, input):
@@ -153,25 +152,20 @@ class DS3XINCModel(BaseModel):
 
     def sample_selfdistribution(self):
         '''Just sample cross domain'''
-        #style_rand = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)
-        self.realA_C = torch.cat((self.real_A, self.real_C_a), 1)
-        self.realB_C = torch.cat((self.real_B, self.real_C_b), 1)
-        self.realC_C = torch.cat((self.real_C_a2, self.real_C_c), 1)
+        style_rand = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)
+        self.realA_C = self.real_A
+        self.realB_C = self.real_B
+        self.realC_C = self.real_C
         self.visual_names = ['real_A', 'fake_A', 'real_B', 'fake_B', 'real_C', 'fake_C'] 
-        if self.opt.CtoE: 
-            content_a, _ = self.netG_A.encode(self.realA_C)
-            content_b, _ = self.netG_A.encode(self.realB_C)
-            content_c, _ = self.netG_A.encode(self.realC_C)
-        else:
-            content_a, _ = self.netG_A.encode(self.real_A)
-            content_b, _ = self.netG_A.encode(self.real_B)
-            content_c, _ = self.netG_A.encode(self.real_C)
-        s_a = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)
-        #s_b = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)
-        #s_c = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)
-        self.fake_A = self.netG_A.decode(content_a, s_a)         
-        self.fake_B = self.netG_A.decode(content_b, s_a)
-        self.fake_C = self.netG_A.decode(content_c, s_a)
+        #itc = self.netG_A.encode_condi(self.real_C_c)
+        #itb = self.netG_A.encode_condi(self.real_C_b)
+        ita = self.netG_A.encode_condi(self.real_C_a)
+        contentA, _, condi_a = self.netG_A.encode(self.realA_C)
+        contentB, _, condi_b = self.netG_A.encode(self.realB_C) 
+        contentC, _, condi_c = self.netG_A.encode(self.realC_C)             
+        self.fake_B = self.netG_A.decode(contentA, style_rand, ita)
+        self.fake_C = self.netG_A.decode(contentC, style_rand, ita)
+        self.fake_A = self.netG_A.decode(contentB, style_rand, ita)
 
     def sample(self):
         '''Just sample cross domain'''
@@ -183,12 +177,15 @@ class DS3XINCModel(BaseModel):
             self.realA_C = self.real_A
             self.realB_C = self.real_B
             self.realC_C = self.real_C
-        condi_a = self.netG_A.encode_condi(self.real_C_a)
         condi_c = self.netG_A.encode_condi(self.real_C_c)
-        contentA, style = self.netG_A.encode(self.realA_C)
-        content, _ = self.netG_A.encode(self.real_C_c)            
-        self.fake_B = self.netG_A.decode(content, style, condi_c)
-        self.real_A = self.netG_A.decode(contentA, style_rand, condi_a)
+        condi_b = self.netG_A.encode_condi(self.real_C_b)
+        condi_a = self.netG_A.encode_condi(self.real_C_a)
+        contentA, styleA, _ = self.netG_A.encode(self.realA_C)
+        contentB, styleB, _ = self.netG_A.encode(self.realB_C) 
+        contentC, _, _ = self.netG_A.encode(self.realC_C)             
+        self.fake_B = self.netG_A.decode(contentA, styleB, condi_b)
+        self.fake_C = self.netG_A.decode(contentC, style_rand, condi_c)
+        self.fake_A = self.netG_A.decode(contentB, styleA, condi_a)
 
     def forward(self):
         self.rsa = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)
@@ -345,12 +342,12 @@ class DS3XINCModel(BaseModel):
         batch_wise_imgs_l1 = batch_wise_imgs_l1 / (img1.size(1)*img1.size(2)*img1.size(3))
         batch_wise_z_l1 = self.criterionDS(s1.detach(), s2.detach()).sum(dim=1)
         batch_wise_z_l1 = batch_wise_z_l1 / s1.size(1)
-        loss_errNE = - (batch_wise_imgs_l1 / (batch_wise_z_l1 + _eps)).mean()
+        loss_errNE = (batch_wise_imgs_l1 / (batch_wise_z_l1 + _eps)).mean()
         if self.opt.NE_MARGIN:
-            loss_errNE = torch.clamp(loss_errNE, max=self.opt.NE_MARGIN_VALUE).mean()* self.opt.lambda_LDS
+            loss_errNE_final = - torch.clamp(loss_errNE, max=self.opt.NE_MARGIN_VALUE).mean()* self.opt.lambda_LDS
         else:
-            loss_errNE = loss_errNE.mean()* self.opt.lambda_LDS
-        return loss_errNE
+            loss_errNE_final = - loss_errNE.mean()* self.opt.lambda_LDS
+        return loss_errNE_final
 
     def backward_D_basic(self, netD, real, fake,condi):
         real_condi = torch.cat((real, condi), 1)

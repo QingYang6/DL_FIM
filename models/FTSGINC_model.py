@@ -43,7 +43,8 @@ class FTSGINCModel(BaseModel):
         'Icp_xa_cascita' , 'Icp_xa_casaita' , 'Icp_xa_carasitc' , 'Icp_xc_cbscita' ,\
         'Icp_xc_cbscaitc' , 'Icp_xc_cbrscitc']
         
-        self.visual_names = ['real_A', 'fake_B', 'real_B']  # combine visualizations for A and B
+        #self.visual_names = ['real_A', 'fake_B', 'real_B']  # combine visualizations for A and B
+        self.visual_names = ['real_C', 'fake_C','real_A','fake_A']
         if self.isTrain:
             if not opt.use_same_D:
                 self.model_names = ['G_A', 'D_A', 'D_B']
@@ -163,13 +164,13 @@ class FTSGINCModel(BaseModel):
             self.realA_C = self.real_A
             self.realB_C = self.real_B
             self.realC_C = self.real_C
-        content_A, _,condiA = self.netG_A.encode(self.realA_C)
-        self.itc = self.netG_A.enc_condi(self.real_C_c)
-        _, style,condiC = self.netG_A.encode(self.realC_C)
+        content_A, _, _ = self.netG_A.encode(self.realA_C)
+        itc = self.netG_A.enc_condi(self.real_C_c)
+        ita = self.netG_A.enc_condi(self.real_C_a)
+        _, style,_ = self.netG_A.encode(self.realC_C)
         content = self.netG_A.enc_sec_content(self.realB_C)
-        self.fake_B = self.netG_A.decode(content, style, condiC)
-        self.real_A = self.netG_A.decode(content_A, style_rand, condiA)
-        self.real_B = self.real_C
+        self.fake_C = self.netG_A.decode(content, style, itc)
+        self.fake_A = self.netG_A.decode(content_A, style_rand, ita)
 
     def forward(self):
         self.rsa = torch.randn(self.real_A.size(0), self.opt.style_dim, 1, 1).to(self.device)

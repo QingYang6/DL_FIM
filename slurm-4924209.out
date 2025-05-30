@@ -1,0 +1,142 @@
+LSB Version:	:core-4.1-amd64:core-4.1-noarch
+Distributor ID:	RedHatEnterprise
+Description:	Red Hat Enterprise Linux release 8.8 (Ootpa)
+Release:	8.8
+Codename:	Ootpa
+SLURM_JOBID 4924209 SLURM_JOBID
+1.12.1
+----------------- Options ---------------
+                    batch: instance                      	[default: batch]
+               batch_size: 16                            	[default: 1]
+                    beta1: 0.5                           
+          checkpoints_dir: checkpoints                   
+            conditional_D: True                          
+           continue_train: True                          
+                crop_size: 256                           
+                 dataroot: /gpfs/sharedfs1/manoslab/data/Qdata/GAN_CD/Downscaling/VIIRs_RAPID/Samples/RAPIDonly_PerW05_buf1575_R20	[default: None]
+             dataset_mode: RAPIDFIM                      	[default: Land2S1]
+                direction: AtoB                          
+              display_env: main                          
+             display_freq: 400                           
+               display_id: 1                             
+            display_ncols: 4                             
+             display_port: 8097                          
+           display_server: http://localhost              
+          display_winsize: 256                           
+                    epoch: latest                        
+              epoch_count: 1                             
+                 gan_mode: vanilla                       	[default: lsgan]
+                  gpu_ids: 0                             
+                init_gain: 0.02                          
+                init_type: kaiming                       
+                 input_nc: 2                             	[default: 6]
+                  isTrain: True                          	[default: None]
+               lambda_GAN: 1.0                           
+              lambda_GAN2: 0.0                           	[default: 1.0]
+                lambda_L1: 10.0                          
+                lambda_kl: 0                             
+                 lambda_z: 1                             
+               latent_dim: 9                             
+                load_iter: 0                             	[default: 0]
+                load_size: 256                           
+                  log_dir: log                           
+                       lr: 0.0004                        	[default: 0.0002]
+           lr_decay_iters: 50                            
+                lr_policy: linear                        
+              main_ex_dir: /gpfs/sharedfs1/manoslab/data/Qdata/GAN_OUTPUT
+         max_dataset_size: inf                           
+                    model: CycleED                       	[default: pix2pix_attn]
+               n_layers_D: 3                             
+                     name: VR_Ronly_condi_sameD_CVAE_noWOP_twoDEM__RAPIDFIM_CycleED_resnet_9blocks_vanilla_Norminstance_batchsize16	[default: experiment_name]
+                      ndf: 64                            	[default: 64]
+                      nef: 64                            
+                     netD: basic_256_multi               
+                     netE: basic_256                     
+                     netG: resnet_9blocks                
+                      ngf: 64                            	[default: 64]
+                    niter: 100                           
+              niter_decay: 200                           	[default: 100]
+                       nl: relu                          
+               no_dropout: False                         
+                no_encode: False                         
+                  no_flip: False                         
+                  no_html: False                         
+                     norm: instance                      
+                   num_Ds: 2                             
+                num_class: 1                             
+              num_threads: 8                             
+                       nz: 128                           
+                output_nc: 1                             
+                    phase: train                         
+                pool_size: 50                            
+             predict_freq: 20000                         
+               preprocess: resize_and_crop               
+               print_freq: 50                            
+              results_dir: results                       
+             save_by_iter: False                         
+          save_epoch_freq: 1                             	[default: 5]
+         save_latest_freq: -1                            
+           serial_batches: False                         
+              split_ratio: 0.02                          
+            split_shuffle: False                         
+                   suffix: _{dataset_mode}_{model}_{netG}_{gan_mode}_Norm{batch}_batchsize{batch_size}
+         update_html_freq: 1000                          
+                 upsample: basic                         
+              use_dropout: False                         
+               use_same_D: True                          
+             valid_batchs: 10                            
+              valid_nrows: 10                            
+                  verbose: False                         
+                where_add: all                           
+----------------- End -------------------
+Train dataset [RAPIDFIMDataset] was created
+Vali dataset [Subset] was created
+The number of training images = 47675
+The number of validating images = 973
+Use GPU!
+NVIDIA A100-PCIE-40GB
+initialize network with kaiming
+initialize network with kaiming
+initialize network with kaiming
+initialize network with kaiming
+model [CycleEDModel] was created
+---------- Networks initialized -------------
+[Network E] Total number of parameters : 2.618 M
+[Network Decoder] Total number of parameters : 3.807 M
+[Network E_f] Total number of parameters : 2.617 M
+[Network D] Total number of parameters : 2.765 M
+-----------------------------------------------
+create web directory /gpfs/sharedfs1/manoslab/data/Qdata/GAN_OUTPUT/VR_Ronly_condi_sameD_CVAE_noWOP_twoDEM__RAPIDFIM_CycleED_resnet_9blocks_vanilla_Norminstance_batchsize16/checkpoints/VR_Ronly_condi_sameD_CVAE_noWOP_twoDEM__RAPIDFIM_CycleED_resnet_9blocks_vanilla_Norminstance_batchsize16/web...
+(epoch: 1, iters: 800, time: 0.006, data: 0.004) G_GAN: 53.2431 D: 1.0218 G_L1: 8.2712 z_L1: 0.6586 
+(epoch: 1, iters: 1600, time: 0.006, data: 0.003) G_GAN: 59.6404 D: 0.5536 G_L1: 3.3654 z_L1: 0.4219 
+(epoch: 1, iters: 2400, time: 0.006, data: 0.004) G_GAN: 80.3071 D: 0.1547 G_L1: 3.8367 z_L1: 0.3917 
+(epoch: 1, iters: 3200, time: 0.006, data: 0.004) G_GAN: 85.8589 D: 0.1266 G_L1: 4.4611 z_L1: 0.5191 
+(epoch: 1, iters: 4000, time: 0.006, data: 0.004) G_GAN: 93.8932 D: 0.0731 G_L1: 9.2341 z_L1: 0.4430 
+(epoch: 1, iters: 4800, time: 0.006, data: 0.005) G_GAN: 100.2365 D: 0.0466 G_L1: 13.0475 z_L1: 0.3328 
+(epoch: 1, iters: 5600, time: 0.006, data: 0.004) G_GAN: 99.9438 D: 0.0601 G_L1: 11.2408 z_L1: 0.3133 
+(epoch: 1, iters: 6400, time: 0.006, data: 0.005) G_GAN: 104.7904 D: 0.0406 G_L1: 16.0036 z_L1: 0.2895 
+(epoch: 1, iters: 7200, time: 0.006, data: 0.005) G_GAN: 108.4419 D: 0.0315 G_L1: 18.2031 z_L1: 0.3035 
+(epoch: 1, iters: 8000, time: 0.006, data: 0.003) G_GAN: 119.0277 D: 0.0204 G_L1: 19.6224 z_L1: 0.2293 
+(epoch: 1, iters: 8800, time: 0.006, data: 0.003) G_GAN: 118.8465 D: 0.0174 G_L1: 19.0039 z_L1: 0.2445 
+(epoch: 1, iters: 9600, time: 0.006, data: 0.004) G_GAN: 129.9896 D: 0.0121 G_L1: 19.7526 z_L1: 0.2946 
+(epoch: 1, iters: 10400, time: 0.006, data: 0.004) G_GAN: 125.0826 D: 0.0120 G_L1: 21.8946 z_L1: 0.1901 
+(epoch: 1, iters: 11200, time: 0.006, data: 0.005) G_GAN: 128.4645 D: 0.0395 G_L1: 13.8281 z_L1: 0.2116 
+(epoch: 1, iters: 12000, time: 0.006, data: 0.005) G_GAN: 132.3310 D: 0.0178 G_L1: 21.5704 z_L1: 0.1809 
+(epoch: 1, iters: 12800, time: 0.007, data: 0.005) G_GAN: 135.3028 D: 0.0142 G_L1: 23.0485 z_L1: 0.5232 
+(epoch: 1, iters: 13600, time: 0.006, data: 0.003) G_GAN: 144.0944 D: 0.0103 G_L1: 25.9932 z_L1: 0.2028 
+(epoch: 1, iters: 14400, time: 0.006, data: 0.006) G_GAN: 91.3277 D: 0.1466 G_L1: 10.3509 z_L1: 0.2032 
+(epoch: 1, iters: 15200, time: 0.006, data: 0.004) G_GAN: 93.2893 D: 0.3863 G_L1: 13.1466 z_L1: 2.9018 
+(epoch: 1, iters: 16000, time: 0.006, data: 0.004) G_GAN: 109.5106 D: 0.0495 G_L1: 18.7344 z_L1: 0.2975 
+(epoch: 1, iters: 16800, time: 0.006, data: 0.004) G_GAN: 118.3922 D: 0.0214 G_L1: 21.5530 z_L1: 0.2523 
+(epoch: 1, iters: 17600, time: 0.006, data: 0.003) G_GAN: 117.9438 D: 0.0202 G_L1: 10.5805 z_L1: 0.1979 
+(epoch: 1, iters: 18400, time: 0.006, data: 0.003) G_GAN: 125.9674 D: 0.0140 G_L1: 21.4125 z_L1: 0.1489 
+(epoch: 1, iters: 19200, time: 0.006, data: 0.004) G_GAN: 125.8234 D: 0.0116 G_L1: 30.0734 z_L1: 0.1810 
+(epoch: 1, iters: 20000, time: 0.006, data: 0.004) G_GAN: 130.8359 D: 0.0078 G_L1: 27.7624 z_L1: 0.1301 
+Traceback (most recent call last):
+  File "/shared/stormcenter/Qing_Y/GAN_ChangeDetection/ASGIT/train_novisdom.py", line 108, in <module>
+    model.test()           # run inference
+  File "/shared/stormcenter/Qing_Y/GAN_ChangeDetection/ASGIT/models/base_model.py", line 163, in test
+    self.sample()
+  File "/shared/stormcenter/Qing_Y/GAN_ChangeDetection/ASGIT/models/CycleED_model.py", line 101, in sample
+    self.fake_B = self.netG(self.real_A, z0)
+AttributeError: 'CycleEDModel' object has no attribute 'netG'

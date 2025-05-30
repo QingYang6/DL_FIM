@@ -103,7 +103,11 @@ class BaseModel(ABC):
                     or self.opt.model == 'MUNITUCCLE' or self.opt.model == 'MUNITSDGCRL'\
                     or self.opt.model == 'DSBicycle' or self.opt.model == 'MUNIT3XIA' \
                     or self.opt.model == 'MUNITTSG' or self.opt.model== 'MUNITFTSG' \
-                    or self.opt.model ==  'FTSGINC' or self.opt.model == 'DS3XINC':
+                    or self.opt.model ==  'FTSGINC' or self.opt.model == 'DS3XINC' or self.opt.model=='DS3XINCL1' \
+                    or self.opt.model == 'TXINCL1' or self.opt.model == 'TXINC' or self.opt.model == 'TXINCL1WEI' \
+                    or self.opt.model ==  'SDGCRL1' or self.opt.model == 'SDGCRL1X2D' or self.opt.model == 'SDGT' \
+                    or self.opt.model == 'IGARSS' or self.opt.model == 'IGARSSSMALL' or self.opt.model == 'IGARSSNORS' \
+                    or self.opt.model == 'CycleED':
                 self.sample_selfdistribution()
             else:
                 self.forward()
@@ -150,7 +154,12 @@ class BaseModel(ABC):
                     or self.opt.model == 'MUNITUCCLE' or self.opt.model == 'MUNITSDGCRL'\
                     or self.opt.model == 'DSBicycle' or self.opt.model == 'MUNIT3XIA' \
                     or self.opt.model == 'MUNITTSG' or self.opt.model== 'MUNITFTSG' \
-                    or self.opt.model ==  'FTSGINC' or self.opt.model == 'DS3XINC':
+                    or self.opt.model ==  'FTSGINC' or self.opt.model == 'DS3XINC' or self.opt.model=='DS3XINCL1' \
+                    or self.opt.model == 'TXINCL1' or self.opt.model == 'TXINC' or self.opt.model == 'TXINCL1WEI'\
+                    or self.opt.model ==  'SDGCRL1' or self.opt.model == 'SDGCRL1X2D' or self.opt.model == 'SDGT' \
+                    or self.opt.model == 'IGARSS' or self.opt.model == 'IGARSSSMALL' \
+                    or self.opt.model == 'IGARSSNORS' \
+                    or self.opt.model == 'CycleED':
                 self.sample()
             else:
                 self.forward()
